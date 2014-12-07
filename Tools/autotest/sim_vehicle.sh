@@ -154,7 +154,7 @@ trap kill_tasks SIGINT
 MAVLINK_PORT="tcp:127.0.0.1:"$((5760+10*$INSTANCE))
 SIMIN_PORT="127.0.0.1:"$((5502+10*$INSTANCE))
 SIMOUT_PORT="127.0.0.1:"$((5501+10*$INSTANCE))
-FG_PORT="127.0.0.1:"$((5503+10*$INSTANCE))
+FG_PORT="10.148.13.147:"$((5503+10*$INSTANCE))
 
 set -x
 
@@ -334,5 +334,7 @@ fi
 if [ $START_HIL == 1 ]; then
     options="$options --load-module=HIL"
 fi
-mavproxy.py $options --cmd="$extra_cmd" $*
+echo "Hit return to continue"
+read not_matter
+# mavproxy.py $options --cmd="$extra_cmd" $*
 kill_tasks
