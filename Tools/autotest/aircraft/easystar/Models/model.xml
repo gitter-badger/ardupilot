@@ -2,7 +2,7 @@
 <PropertyList>
 
 	<!--Plane-->
-    <path>easystar.ac</path>
+    <path>aircraft-m.ac</path>
     <offsets>
         <z-m>0.0</z-m>
         <y-m>0</y-m>
