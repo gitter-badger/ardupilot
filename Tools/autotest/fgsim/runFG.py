@@ -55,7 +55,6 @@ def process_input(buf):
     '''process FG FDM input from JSBSim'''
     global fdm, sim_out
     fdm.parse(buf)
-    print fdm
 
     simbuf = struct.pack('!17dI',
                          fdm.get('latitude', units='degrees'),
