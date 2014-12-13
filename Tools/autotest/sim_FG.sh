@@ -86,7 +86,6 @@ while getopts ":I:cj:TA:t:L:v:hw:He" opt; do
   		EXTERNAL_SIM=1
   		;;
   	h)
-  		usage
   		exit 0
   		;;
   	\?)
@@ -95,7 +94,6 @@ while getopts ":I:cj:TA:t:L:v:hw:He" opt; do
     	;;
     :)
     	echo "Option -$OPTARG requires an argument." >&2
-    	usage
     	exit 1
   	esac
 done
@@ -137,7 +135,6 @@ case $FRAME in
     ;;
   *)
     echo "Unknown Frame type $FRAME, quitting sim"
-    usage
     exit 1
     ;;
 esac
@@ -146,7 +143,6 @@ autotest=$(dirname $(readlink -e $0))
 if [ $NO_REBUILD == 0 ]; then
 pushd $autotest/../../$VEHICLE || {
   echo "Failed to change to vehicle directory for $VEHICLE, quitting"
-  usage
   exit 1
 }
 if [ $CLEAN_BUILD == 1 ]; then
@@ -160,20 +156,13 @@ popd
 fi
 
 # get start location info
-SIMHOME=$(cat $autotest)
+SIMHOME=$(cat $autotest/locations.txt | grep -i "^$LOCATION=" | cut -d= -f2)
+echo "$SIMHOME"
 [ -z "$SIMHOME" ] && {
     echo "Unknown location $LOCATION"
-    usage
     exit 1
 }
 echo "Starting up at $LOCATION : $SIMHOME"
-
-TRACKER_HOME=$(cat $autotest/locations.txt | grep -i "^$TRACKER_LOCATION=" | cut -d= -f2)
-[ -z "$TRACKER_HOME" ] && {
-    echo "Unknown tracker location $TRACKER_LOCATION"
-    usage
-    exit 1
-}
 
 cmd="/tmp/$VEHICLE.build/$VEHICLE.elf -I$INSTANCE"
 if [ $WIPE_EEPROM == 1 ]; then
@@ -182,10 +171,7 @@ fi
 
 case $VEHICLE in
     ArduPlane)
-        [ "$REVERSE_THROTTLE" == 1 ] && {
-            EXTRA_SIM="$EXTRA_SIM --revthr"
-        }
-        RUNSIM="nice $autotest/jsbsim/runsim.py --home=$SIMHOME --simin=$SIMIN_PORT --simout=$SIMOUT_PORT --fgout=$FG_PORT $EXTRA_SIM"
+        RUNSIM="$autotest/fgsim/runFG.py --simin=$SIMIN_PORT --simout=$SIMOUT_PORT"
         PARMS="ArduPlane.parm"
         if [ $WIPE_EEPROM == 1 ]; then
             cmd="$cmd -PFORMAT_VERSION=13 -PSKIP_GYRO_CAL=1 -PRC3_MIN=1000 -PRC3_TRIM=1000"
@@ -193,27 +179,26 @@ case $VEHICLE in
         ;;
     *)
         echo "Unknown vehicle simulation type $VEHICLE - please specify vehicle using -v VEHICLE_TYPE"
-        usage
         exit 1
         ;;
 esac
 
+$autotest/run_in_terminal_window.sh "ardupilot" $cmd || exit 1
+
 trap kill_tasks SIGINT
 
+$autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
+  echo "Failed to start simulator: $RUNSIM"
+  exit 1
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+options=""
+options="--master $MAVLINK_PORT --sitl $SIMOUT_PORT"
+options="$options --out 127.0.0.1:14550 --out 127.0.0.1:14551"
+if [ $WIPE_EEPROM == 1 ]; then
+    extra_cmd="param forceload $autotest/$PARMS; $EXTRA_PARM; param fetch"
+fi
+echo "Hit return to continue"
+read not_matter
+# mavproxy.py $options --cmd="$extra_cmd" $*
+kill_tasks

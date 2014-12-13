@@ -119,11 +119,14 @@ def update_wind(wind):
     jsb_set('atmosphere/psiw-rad', math.radians(direction))
     jsb_set('atmosphere/wind-mag-fps', speed/0.3048)
     
-
+global startq
+startq = 1
 def process_jsb_input(buf):
     '''process FG FDM input from JSBSim'''
     global fdm, fg_out, sim_out
+    startq = 0
     fdm.parse(buf)
+
     if fg_out:
         try:
             agl = fdm.get('agl', units='meters')
@@ -133,7 +136,6 @@ def process_jsb_input(buf):
         except socket.error as e:
             if e.errno not in [ errno.ECONNREFUSED ]:
                 raise
-
     simbuf = struct.pack('<17dI',
                          fdm.get('latitude', units='degrees'),
                          fdm.get('longitude', units='degrees'),
