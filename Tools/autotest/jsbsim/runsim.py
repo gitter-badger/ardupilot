@@ -32,7 +32,7 @@ def jsb_set(variable, value):
     jsb_console.send('set %s %s\r\n' % (variable, value))
 
 def setup_template(home):
-    '''setup aircraft/Rascal/reset.xml'''
+    '''setup aircraft/EasyStar/reset.xml'''
     global opts
     v = home.split(',')
     if len(v) != 4:
@@ -43,11 +43,12 @@ def setup_template(home):
     altitude = float(v[2])
     heading = float(v[3])
     sitl_state.ground_height = altitude
-    template = os.path.join('aircraft', 'Rascal', 'reset_template.xml')
-    reset = os.path.join('aircraft', 'Rascal', 'reset.xml')
+    template = os.path.join('aircraft', 'EasyStar', 'reset_template.xml')
+    reset = os.path.join('aircraft', 'EasyStar', 'reset.xml')
     xml = open(template).read() % { 'LATITUDE'  : str(latitude),
                                     'LONGITUDE' : str(longitude),
-                                    'HEADING'   : str(heading) }
+                                    'ALTITUDE'   : str(altitude),
+                                    'HEADING'   : str(heading)}
     open(reset, mode='w').write(xml)
     print("Wrote %s" % reset)
 
@@ -59,8 +60,8 @@ def setup_template(home):
     open(out, mode='w').write(xml)
     print("Wrote %s" % out)
 
-    template = os.path.join('jsbsim', 'rascal_test_template.xml')
-    out      = os.path.join('jsbsim', 'rascal_test.xml')
+    template = os.path.join('jsbsim', 'easystar_test_template.xml')
+    out      = os.path.join('jsbsim', 'easystar_test.xml')
     xml = open(template).read() % { 'JSBCONSOLEPORT'  : str(baseport+4) }
     open(out, mode='w').write(xml)
     print("Wrote %s" % out)
@@ -171,7 +172,7 @@ parser.add_option("--simin",   help="SITL input (IP:port)",          default="12
 parser.add_option("--simout",  help="SITL output (IP:port)",         default="127.0.0.1:5501")
 parser.add_option("--fgout",   help="FG display output (IP:port)",   default="127.0.0.1:5503")
 parser.add_option("--home",    type='string', help="home lat,lng,alt,hdg (required)")
-parser.add_option("--script",  type='string', help='jsbsim model script', default='jsbsim/rascal_test.xml')
+parser.add_option("--script",  type='string', help='jsbsim model script', default='jsbsim/easystar_test.xml')
 parser.add_option("--options", type='string', help='jsbsim startup options')
 parser.add_option("--elevon", action='store_true', default=False, help='assume elevon input')
 parser.add_option("--revthr", action='store_true', default=False, help='reverse throttle')
