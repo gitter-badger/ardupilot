@@ -5,7 +5,7 @@ AUTOTESTDIR=$(dirname $0)
 nice fgfs \
     --native-fdm=socket,in,10,,5503,udp \
     --fdm=external \
-    --aircraft=Rascal110-JSBSim \
+    --aircraft=EasyStar \
     --control=mouse \
     --fg-aircraft="$AUTOTESTDIR/aircraft" \
     --airport=YKRY \

@@ -18,6 +18,7 @@
 *.zip
 .*.swo
 .*.swp
+*.elf
 .built
 .context
 .cproject
