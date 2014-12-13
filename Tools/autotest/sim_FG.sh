@@ -61,12 +61,6 @@ while getopts ":I:cj:TA:t:L:v:hw:He" opt; do
   		START_HIL=1
   		NO_REBUILD=1
   		;;
-  	T)
-  		START_ANTENNA_TRACKER=1
-  		;;
-  	A)
-  		TRACKER_ARGS="$OPTARG"
-  		;;
   	L)
   		LOCATION="$OPTARG"
   		;;
@@ -104,8 +98,8 @@ shift $((OPTIND-1))
 kill_tasks()
 {
 	["$INSTANCE" -eq "0"] && {
-		killall -q JSBSim lt-JSBSim ArduPlane.elf ArduCopter.elf APMrover2.elf AntennaTracker.elf
-		pkill -f runsim.py runFG.py
+		killall -q JSBSim lt-JSBSim ArduPlane.elf
+		pkill -f runsim.py
 		pkill -f sim_tracker.py
 	}
 }
@@ -118,26 +112,12 @@ MAVLINK_PORT="tcp:127.0.0.1:"$((5760+10*INSTANCE))
 SIMIN_PORT="10.148.13.147:"$((5501+10*INSTANCE))
 SIMOUT_PORT="10.148.13.147:"$((5502+10*INSTANCE))
 
-set -x
 [ -z "$VEHICLE" ] && {
   VEHICLE="ArduPlane"
 }
 
 EXTRA_PARM=""
 EXTRA_SIM=""
-
-# modify build target based on frame type (exludes copter currently, can be updated later if needed, also lacks skid steering)
-case $FRAME in
-  obc)
-    BUILD_TARGET="sitl-obc"
-    ;;
-  "")
-    ;;
-  *)
-    echo "Unknown Frame type $FRAME, quitting sim"
-    exit 1
-    ;;
-esac
 
 autotest=$(dirname $(readlink -e $0))
 if [ $NO_REBUILD == 0 ]; then
@@ -187,10 +167,7 @@ $autotest/run_in_terminal_window.sh "ardupilot" $cmd || exit 1
 
 trap kill_tasks SIGINT
 
-$autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
-  echo "Failed to start simulator: $RUNSIM"
-  exit 1
-}
+$autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || exit 1
 
 options=""
 options="--master $MAVLINK_PORT --sitl $SIMOUT_PORT"
@@ -200,5 +177,5 @@ if [ $WIPE_EEPROM == 1 ]; then
 fi
 echo "Hit return to continue"
 read not_matter
-# mavproxy.py $options --cmd="$extra_cmd" $*
+mavproxy.py $options --cmd="$extra_cmd" $*
 kill_tasks
