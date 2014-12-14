@@ -56,7 +56,7 @@ def process_input(buf):
     global fdm, sim_out
     fdm.parse(buf)
 
-    simbuf = struct.pack('!17dI',
+    simbuf = struct.pack('<17dI',
                          fdm.get('latitude', units='degrees'),
                          fdm.get('longitude', units='degrees'),
                          fdm.get('altitude', units='meters'),
@@ -88,7 +88,7 @@ from optparse import OptionParser
 parser = OptionParser("runFG.py [options]")
 parser.add_option("--simin", help="SITL input (IP:port)")
 parser.add_option("--simout",  help="SITL output (IP:port)")
-parser.add_option("--options", type='string', help='jsbsim startup options')
+parser.add_option("--options", type='string', help='flightgear startup options')
 (opts, args) = parser.parse_args()
 
 os.chdir(util.reltopdir('Tools/autotest'))
