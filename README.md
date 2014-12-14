@@ -17,6 +17,7 @@
 
 >First, open flight gear
 >>Option 1: open the flightgear launcher application and in "Others" tab, paste "--generic=socket,out,100,localhost,5501,udp,MAVLink --generic=socket,in,100,localhost,5502,udp,MAVLink" (without the quotation marks)
+
 >>Option 2: enter the following command into terminal (assumes Flightgear Launcher app is in /Applications)
 >>>/Applications/Flightgear.app/Contents/MacOS/fgfs --generic=socket,out,100,localhost,5501,udp,MAVLink --generic=socket,in,100,localhost,5502,udp,MAVLink
 
@@ -26,9 +27,9 @@
 
 >>sim_FG.sh -w
 
->>The -w is only necessary on first run to wipe params
+>>>The -w is only necessary on first run to wipe params
 
->>You may also use -j NUMPROC where NUMPROC is the number of processers you have to speed up compiling
+>>>You may also use -j NUMPROC where NUMPROC is the number of processers you have to speed up compiling
 
 
 ### How to connect to MAVProxy ###
@@ -40,9 +41,9 @@
 
 >>sim_FG.sh -w
 
->>The -w is only necessary on first run to wipe params
+>>>The -w is only necessary on first run to wipe params
 
->>You may also use -j NUMPROC where NUMPROC is the number of processers you have to speed up compiling
+>>>You may also use -j NUMPROC where NUMPROC is the number of processers you have to speed up compiling
 
 
 >When the windows load, go back to the terminal and enter the following:
@@ -50,7 +51,7 @@
 
 >>wp load /vagrant/ardupilot/Tools/autotest/ArduPlane-Missions/CMAC-toff-loop.txt
 
->>This won't actually make the plane fly since communication with FG is not functional, but it is evidence of connection with MAVProxy
+>>>This won't actually make the plane fly since communication with FG is not functional, but it is evidence of connection with MAVProxy
 
 
 
