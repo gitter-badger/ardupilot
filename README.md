@@ -9,8 +9,7 @@
 
 >>Antenna Tracker : [code](https://github.com/diydrones/ardupilot/tree/master/AntennaTracker), [wiki](http://copter.ardupilot.com/wiki/common-antennatracker-introduction)
 
-### How to get Flightgear simulation running ###
-#### This does not currently work, so don't try it ####
+### How to get Flightgear simulation running (Does not currently work) ###
 >Please note, this assumes your copy of ardupilot is in a vagrant virtualbox under /vagrant/ardupilot
 
 >Also, make sure your vagrantfile works similarly (port forwarding, etc.) to the one in the home directory of this repository
@@ -32,8 +31,7 @@
 >>>You may also use -j NUMPROC where NUMPROC is the number of processers you have to speed up compiling
 
 
-### How to connect to MAVProxy ###
-#### This currently does work ####
+### How to connect to MAVProxy (Does currently work) ###
 >Please note, this assumes your copy of ardupilot is in a vagrant virtualbox under /vagrant/ardupilot
 
 >Navigate to this directory (ardupilot), then execute the following commands
