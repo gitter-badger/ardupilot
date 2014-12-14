@@ -21,10 +21,15 @@
 >>>/Applications/Flightgear.app/Contents/MacOS/fgfs --generic=socket,out,100,localhost,5501,udp,MAVLink --generic=socket,in,100,localhost,5502,udp,MAVLink
 
 >Then in a separate terminal within your vagrant shell, navigate to this directory (ardupilot) then execute the following commands
+
 >>cd Tools/autotest
+
 >>sim_FG.sh -w
+
 >>The -w is only necessary on first run to wipe params
+
 >>You may also use -j NUMPROC where NUMPROC is the number of processers you have to speed up compiling
+
 
 ### How to connect to MAVProxy ###
 #### This currently does work ####
@@ -32,13 +37,21 @@
 
 >Navigate to this directory (ardupilot), then execute the following commands
 >>cd Tools/autotest
+
 >>sim_FG.sh -w
+
 >>The -w is only necessary on first run to wipe params
+
 >>You may also use -j NUMPROC where NUMPROC is the number of processers you have to speed up compiling
+
+
 >When the windows load, go back to the terminal and enter the following:
 >>module load console
+
 >>wp load /vagrant/ardupilot/Tools/autotest/ArduPlane-Missions/CMAC-toff-loop.txt
+
 >>This won't actually make the plane fly since communication with FG is not functional, but it is evidence of connection with MAVProxy
+
 
 
 
