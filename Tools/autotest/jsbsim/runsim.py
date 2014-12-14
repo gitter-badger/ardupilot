@@ -32,7 +32,7 @@ def jsb_set(variable, value):
     jsb_console.send('set %s %s\r\n' % (variable, value))
 
 def setup_template(home):
-    '''setup aircraft/EasyStar/reset.xml'''
+    '''setup aircraft/EasyStar/reset00.xml'''
     global opts
     v = home.split(',')
     if len(v) != 4:
@@ -44,7 +44,7 @@ def setup_template(home):
     heading = float(v[3])
     sitl_state.ground_height = altitude
     template = os.path.join('aircraft', 'EasyStar', 'reset_template.xml')
-    reset = os.path.join('aircraft', 'EasyStar', 'reset.xml')
+    reset = os.path.join('aircraft', 'EasyStar', 'reset00.xml')
     xml = open(template).read() % { 'LATITUDE'  : str(latitude),
                                     'LONGITUDE' : str(longitude),
                                     'ALTITUDE'   : str(altitude),
@@ -328,6 +328,7 @@ def main_loop():
 
 def exit_handler():
     '''exit the sim'''
+    print("HELP I'm DYING")
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     # JSBSim really doesn't like to die ...
