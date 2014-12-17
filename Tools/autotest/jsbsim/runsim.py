@@ -194,21 +194,25 @@ atexit.register(util.pexpect_close_all)
 
 setup_template(opts.home)
 
-# start child
-cmd = "JSBSim --realtime --suspend --nice --simulation-rate=1000 --logdirectivefile=jsbsim/fgout.xml --script=%s" % opts.script
-if opts.options:
-    cmd += ' %s' % opts.options
+ start child
+ cmd = "JSBSim --realtime --suspend --nice --simulation-rate=1000 --logdirectivefile=jsbsim/fgout.xml --script=%s" % opts.script
+ if opts.options:
+     cmd += ' %s' % opts.options
+
+cmd = "echo hello"
 
 jsb = pexpect.spawn(cmd, logfile=sys.stdout, timeout=10)
 jsb.delaybeforesend = 0
 util.pexpect_autoclose(jsb)
 i = jsb.expect(["Successfully bound to socket for input on port (\d+)",
-                "Could not bind to socket for input"])
+                 "Could not bind to socket for input"])
 if i == 1:
-    print("Failed to start JSBSim - is another copy running?")
-    sys.exit(1)
+     print("Failed to start JSBSim - is another copy running?")
+     sys.exit(1)
+jsb_out_address = interpret_address("10.148.13.186:%u" % 5700)
 jsb_out_address = interpret_address("127.0.0.1:%u" % int(jsb.match.group(1)))
 jsb.expect("Creating UDP socket on port (\d+)")
+jsb_in_address = interpret_address("10.148.13.186:%u" % 5600)
 jsb_in_address = interpret_address("127.0.0.1:%u" % int(jsb.match.group(1)))
 jsb.expect("Successfully connected to socket for output")
 jsb.expect("JSBSim Execution beginning")
