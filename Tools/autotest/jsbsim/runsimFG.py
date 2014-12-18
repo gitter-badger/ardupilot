@@ -43,18 +43,15 @@ class FGConnection(object):
 
 	#packet is of type servos
 	def sendPacket(self, pkt):
-		servos = []
+		servoList = []
 		#1 index because of the real world
-        for ch in range(1,12):
-            servos.append(servos.scale_channel(ch, getattr(pkt, 'ch%u' % ch)))
-    	buf = struct.pack('!11', *servos)
-    	try:
-            self.fg_out.send(buf)
-        except socket.error as e:
-            if not e.errno in [ errno.ECONNREFUSED ]:
-                raise
-            return 0
-		return 1
+		for ch in range(1,12):
+			servoList.append(servoList.scale_channel(ch, getattr(pkt, 'ch%u' % ch)))
+			buf = struct.pack('!11', *servoList)
+		try:
+			self.fg_out.send(buf)
+		except socket.error as e:
+			raise
 
 	#parses the fdm packet from flightgear if there is one
 	def readPacket(self):
@@ -143,6 +140,7 @@ class SITLConnection(object):
 		self.elevator = 0
 		self.throttle = 0
 		self.rudder = 0
+		self.controlServos = 0
 
 	#opts is the parsed options
 	def readPacket(self):
@@ -159,7 +157,7 @@ class SITLConnection(object):
 		#wind.direction  = direction*0.01
 		#wind.turbulance = turbulance*0.01
 
-		controlServos = servos(pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7],pwm[8],pwm[9], pwm[10])
+		self.controlServos = servos(pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7],pwm[8],pwm[9], pwm[10])
 		#controlServos.servosPrint();
 		#aileron  = (pwm[0]-1500)/500.0
 		#elevator = (pwm[1]-1500)/500.0
@@ -169,7 +167,6 @@ class SITLConnection(object):
 		#rudder   = (pwm[3]-1500)/500.0
 		#control_state = control(aileron,rudder,throttle,elevator)
 		#control_state.myprint();
-		return controlServos
 
 	#state is of type fgFDM returns 
 	def sendSITL(state):
@@ -225,8 +222,13 @@ os.chdir(util.reltopdir('Tools/autotest'))
 APM = SITLConnection(interpret_address(opts.simin), interpret_address(opts.simout))
 FG = FGConnection(interpret_address(opts.fgin), interpret_address(opts.fgout))
 
+global receivedST
+global receivedFG
+
 
 def mainLoop():
+	receivedST = False
+	receivedFG = False
 	print("starting loop")
 	while True:
 		rin = [FG.fg_in.fileno(), APM.sim_in.fileno()]
@@ -237,12 +239,23 @@ def mainLoop():
 			print("error")
 			continue
 		if FG.fg_in.fileno() in rin:
-			print("socket connected")
+			receivedFG = True
 			FG.readPacket()
-			FG.printPacket()
 
 		if APM.sim_in.fileno() in rin:
+			receivedST = True
 			APM.readPacket()
+
+		if FG.fg_out.fileno() in rout:
+			if receivedST:
+				FG.sendPacket(APM.controlServos)
+
+		if APM.sim_out.fileno() in rout:
+			if receivedFG:
+				APM.sendPacket(FG.fdm)
+
+
+
 
 mainLoop()
 
