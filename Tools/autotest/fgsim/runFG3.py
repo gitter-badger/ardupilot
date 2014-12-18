@@ -7,8 +7,8 @@ import util, atexit, fdpexpect
 from pymavlink import fgFDM
 from optparse import OptionParser
 
-global ground_height # removed from sitl_state since it should logically be global
-class location(object):
+global ground_height # removed from sitl_state since it should logically be independent
+class basicLocation(object):
 	def __init__(self,latitude,longitude,altitude,heading):
 		self.latitude = latitude;
 		self.longitude = longitude;
@@ -22,7 +22,7 @@ class control(object):
 		self.throttle = throttle;
 		self.elevator = elevator;
 
-class sitl_state(object):
+class sitl_state(basicLocation, control):
 	def __init__(self, start_control, start_location):
 		self.aileron = start_control.aileron;
 		self.rudder = start_control.rudder;
@@ -131,12 +131,12 @@ initControl = classifyControl(opts.startControl)
 initLocation = classifyLocation(opts.startLocation)
 current_state = sitl_state(initControl,initLocation)
 
-os.chdir('/vagrant')
-cmd = "fgfs --model-hz=1000"
-cmd = cmd + " --lon=" + initLocation.longitude + " --lat=" + initLocation.latitude + " --altitude=" + initLocation.altitude + " --heading=" + initLocation.heading
-cmd = cmd + " --generic=socket,out,40,localhost,6501,udp,MAVLink" + "--generic=socket,in,45,localhost,6502,udp,MAVLink"
-fg = pexpect.spawn(cmd, timeout=10)
-fg.delaybeforespend = 0
+# os.chdir('/vagrant')
+# cmd = "fgfs --model-hz=1000"
+# cmd = cmd + " --lon=" + initLocation.longitude + " --lat=" + initLocation.latitude + " --altitude=" + initLocation.altitude + " --heading=" + initLocation.heading
+# cmd = cmd + " --generic=socket,out,40,localhost,6501,udp,MAVLink" + "--generic=socket,in,45,localhost,6502,udp,MAVLink"
+# fg = pexpect.spawn(cmd, timeout=10)
+# fg.delaybeforespend = 0
 
 run_to_ardu_address = interpret_address(opts.runArdu)
 ardu_to_run_address  = interpret_address(opts.arduRun)

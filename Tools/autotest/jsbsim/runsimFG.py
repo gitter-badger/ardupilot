@@ -60,6 +60,32 @@ class FGConnection(object):
 			self.fdm.get('A_Y_pilot', units='mpss'),
 			self.fdm.get('A_Z_pilot', units='mpss')))
 				
+class control(object):
+    def __init__(self,aileron,rudder,throttle,elevator):
+        self.aileron = aileron;
+        self.rudder = rudder;
+        self.throttle = throttle;
+        self.elevator = elevator;
+
+    def myprint(self):
+        print self.aileron;
+        print self.rudder;
+        print self.throttle;
+        print self.elevator;
+
+class servos(object):
+    def __init__(self,ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8,ch9,ch10,ch11):
+        self.ch1 = ch1
+        self.ch2 = ch2
+        self.ch3 = ch3
+        self.ch4 = ch4
+        self.ch5 = ch5
+        self.ch6 = ch6
+        self.ch7 = ch7
+        self.ch8 = ch8
+        self.ch9 = ch9
+        self.ch10 = ch10
+        self.ch11 = ch11
 
 '''Read the UDP socket from FlightGear'''
 
@@ -97,10 +123,9 @@ class SITLConnection(object):
 
 	#opts is the parsed options
 	def readPacket(self, opts):
-		'''process control changes from SITL sim'''
+		'''process control changes from SITL sim, returns type control'''
 		#the packet size for the sim input in 28 bytes
-		simbuf = sim_in.recv(28)
-		process_sitl_input(simbuf)
+		simbuf = APM.sim_in.recv(28)
 		control = list(struct.unpack('<14H', buf))
 		pwm = control[:11]
 		(speed, direction, turbulance) = control[11:]
@@ -111,16 +136,17 @@ class SITLConnection(object):
 		wind.direction  = direction*0.01
 		wind.turbulance = turbulance*0.01
 
-		self.aileron  = (pwm[0]-1500)/500.0
-		self.elevator = (pwm[1]-1500)/500.0
-		self.throttle = (pwm[2]-1000)/1000.0
+		aileron  = (pwm[0]-1500)/500.0
+		elevator = (pwm[1]-1500)/500.0
+		throttle = (pwm[2]-1000)/1000.0
 		if opts.revthr:
 			self.throttle = 1.0 - throttle
-			self.rudder   = (pwm[3]-1500)/500.0
+		rudder   = (pwm[3]-1500)/500.0
+        control_state = control(aileron,rudder,throttle,elevator)
+        control_state.myprint();
+        return control_state
 
-		
-
-	#state is of type fgFDM
+	#state is of type fgFDM returns 
 	def sendSITL(state):
 		simbuf = struct.pack('<17dI',
 			state.get('latitude', units='degrees'),
@@ -141,6 +167,11 @@ class SITLConnection(object):
 			state.get('psi', units='degrees'),
 			state.get('vcas', units='mps'),
 			0x4c56414f) 
+		try:
+			APM.sim_out.send(simbuf)
+		except:
+			raise
+
 		#TODO: Acutally send the information 
 
 
@@ -185,6 +216,7 @@ def mainLoop():
 
 		if APM.sim_in.fileno() in rin:
 			APM.readPacket(opts)
+		print
 
 
 mainLoop()
