@@ -44,16 +44,15 @@ class FGConnection(object):
 	def sendPacket(self, pkt):
 		servos = []
 		#1 index because of the real world
-        for ch in range(1,12):
-            servos.append(getattr(pkt, 'ch%u' % ch))
-    	buf = struct.pack('!11', *servos)
-    	try:
-            self.fg_out.send(buf)
-        except socket.error as e:
-            if not e.errno in [ errno.ECONNREFUSED ]:
-                raise
-            return 0
-		return 1
+		for ch in range(1,12):
+			servos.append(getattr(pkt, 'ch%u' % ch))
+			buf = struct.pack('!11', *servos)
+			try:
+				self.fg_out.send(buf)
+			except socket.error as e:
+				if not e.errno in [ errno.ECONNREFUSED ]:
+					raise
+					return 0
 
 	#parses the fdm packet from flightgear if there is one
 	def readPacket(self):
@@ -84,7 +83,7 @@ class control(object):
         print self.elevator;
 
 class servos(object):
-    def __init__(self,ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8,ch9,ch10):
+    def __init__(self,ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8,ch9,ch10, ch11):
         self.ch1 = ch1
         self.ch2 = ch2
         self.ch3 = ch3
@@ -95,18 +94,10 @@ class servos(object):
         self.ch8 = ch8
         self.ch9 = ch9
         self.ch10 = ch10
+        self.ch11 = ch11
 
     def servosPrint(self):
-        print self.ch1;
-        print self.ch2;
-        print self.ch3;
-        print self.ch4;
-        print self.ch5;
-        print self.ch6;
-        print self.ch7;
-        print self.ch8;
-        print self.ch9;
-        print self.ch10;
+        print self.ch1,' ',self.ch2,' ',self.ch3,' ',self.ch4,' ',self.ch5,' ',self.ch6,' ',self.ch7,' ',self.ch8,' ',self.ch9,' ',self.ch10,' ',self.ch11
 
 '''Read the UDP socket from FlightGear'''
 
@@ -157,8 +148,8 @@ class SITLConnection(object):
 		#wind.direction  = direction*0.01
 		#wind.turbulance = turbulance*0.01
 
-		controlServos = servos(pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7],pwm[8],pwm[9])
-
+		controlServos = servos(pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7],pwm[8],pwm[9], pwm[10])
+		#controlServos.servosPrint();
 		#aileron  = (pwm[0]-1500)/500.0
 		#elevator = (pwm[1]-1500)/500.0
 		#throttle = (pwm[2]-1000)/1000.0
