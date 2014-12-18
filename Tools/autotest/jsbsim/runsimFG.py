@@ -40,15 +40,25 @@ class FGConnection(object):
 		self.fg_out.setblocking(0)
 		self.fdm = fgFDM.fgFDM()
 
-
+	#packet is of type servos
 	def sendPacket(self, pkt):
-		return 0
+		servos = []
+		#1 index because of the real world
+        for ch in range(1,12):
+            servos.append(getattr(pkt, 'ch%u' % ch))
+    	buf = struct.pack('!11', *servos)
+    	try:
+            self.fg_out.send(buf)
+        except socket.error as e:
+            if not e.errno in [ errno.ECONNREFUSED ]:
+                raise
+            return 0
+		return 1
 
 	#parses the fdm packet from flightgear if there is one
 	def readPacket(self):
-		if self.fg_in.fileno() :
-			buf = self.fg_in.recv(self.fdm.packet_size())
-			self.fdm.parse(buf)
+		buf = self.fg_in.recv(self.fdm.packet_size())
+		self.fdm.parse(buf)
 
 	def printPacket(self):
 		print("asl=%.1f agl=%.1f roll=%.1f pitch=%.1f a=(%.2f %.2f %.2f)" % (
@@ -147,14 +157,14 @@ class SITLConnection(object):
 
 ##################
 # main program
+#localhost on the VM is 0.0.0.0 NOT 127.0.0.1 
+#If you're UDP doesn't work, this is the issue
 from optparse import OptionParser
 parser = OptionParser("runsim.py [options]")
 parser.add_option("--simin",   help="SITL input (IP:port)",          default="127.0.0.1:5502")
 parser.add_option("--simout",  help="SITL output (IP:port)",         default="127.0.0.1:5501")
 parser.add_option("--fgout",   help="Output to FG (IP:port)",   default="127.0.0.1:5503")
 parser.add_option("--fgin",   help="Input from FG (IP:port)",   default="127.0.0.1:5504")
-parser.add_option("--home",    type='string', help="home lat,lng,alt,hdg (required)")
-parser.add_option("--script",  type='string', help='jsbsim model script', default='jsbsim/easystar_test.xml')
 parser.add_option("--options", type='string', help='jsbsim startup options')
 parser.add_option("--elevon", action='store_true', default=False, help='assume elevon input')
 parser.add_option("--revthr", action='store_true', default=False, help='reverse throttle')
@@ -171,6 +181,7 @@ FG = FGConnection(interpret_address(opts.fgin), interpret_address(opts.fgout))
 
 
 def mainLoop():
+	print("starting loop")
 	while True:
 		rin = [FG.fg_in.fileno(), APM.sim_in.fileno()]
 		rout = [FG.fg_out.fileno(), APM.sim_out.fileno()]
@@ -180,12 +191,12 @@ def mainLoop():
 			print("error")
 			continue
 		if FG.fg_in.fileno() in rin:
+			print("socket connected")
 			FG.readPacket()
 			FG.printPacket()
 
 		if APM.sim_in.fileno() in rin:
 			APM.readPacket(opts)
-
 
 mainLoop()
 
