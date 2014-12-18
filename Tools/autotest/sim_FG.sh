@@ -149,19 +149,12 @@ if [ $WIPE_EEPROM == 1 ]; then
     cmd="$cmd -w"
 fi
 
-case $VEHICLE in
-    ArduPlane)
-        RUNSIM="$autotest/fgsim/runFG.py --simin=$SIMIN_PORT --simout=$SIMOUT_PORT"
-        PARMS="ArduPlane.parm"
-        if [ $WIPE_EEPROM == 1 ]; then
-            cmd="$cmd -PFORMAT_VERSION=13 -PSKIP_GYRO_CAL=1 -PRC3_MIN=1000 -PRC3_TRIM=1000"
-        fi
-        ;;
-    *)
-        echo "Unknown vehicle simulation type $VEHICLE - please specify vehicle using -v VEHICLE_TYPE"
-        exit 1
-        ;;
-esac
+
+RUNSIM="$autotest/fgsim/runFG2.py --simin=$SIMIN_PORT --simout=$SIMOUT_PORT"
+PARMS="ArduPlane.parm"
+if [ $WIPE_EEPROM == 1 ]; then
+  cmd="$cmd -PFORMAT_VERSION=13 -PSKIP_GYRO_CAL=1 -PRC3_MIN=1000 -PRC3_TRIM=1000"
+fi
 
 $autotest/run_in_terminal_window.sh "ardupilot" $cmd || exit 1
 
@@ -175,7 +168,7 @@ options="$options --out 127.0.0.1:14550 --out 127.0.0.1:14551"
 if [ $WIPE_EEPROM == 1 ]; then
     extra_cmd="param forceload $autotest/$PARMS; $EXTRA_PARM; param fetch"
 fi
+mavproxy.py $options --cmd="$extra_cmd" $*
 echo "Hit return to continue"
 read not_matter
-mavproxy.py $options --cmd="$extra_cmd" $*
 kill_tasks
