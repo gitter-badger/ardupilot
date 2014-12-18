@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 '''Test to see if we can communicate with FlightGear. This can
@@ -45,7 +46,7 @@ class FGConnection(object):
 		servos = []
 		#1 index because of the real world
         for ch in range(1,12):
-            servos.append(getattr(pkt, 'ch%u' % ch))
+            servos.append(servos.scale_channel(ch, getattr(pkt, 'ch%u' % ch)))
     	buf = struct.pack('!11', *servos)
     	try:
             self.fg_out.send(buf)
@@ -96,6 +97,16 @@ class servos(object):
         self.ch9 = ch9
         self.ch10 = ch10
         self.ch11 = ch11
+
+    def scale_channel(self, ch, value):
+	    '''scale a channel to 1000/1500/2000'''
+	    v = value/10000.0
+	    if v < -1:
+	        v = -1
+	    elif v > 1:
+	        v = 1
+	    return int(1500 + v*500)
+
 
 '''Read the UDP socket from FlightGear'''
 

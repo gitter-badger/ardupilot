@@ -32,7 +32,7 @@ def jsb_set(variable, value):
     jsb_console.send('set %s %s\r\n' % (variable, value))
 
 def setup_template(home):
-    '''setup aircraft/EasyStar/reset00.xml'''
+    '''setup aircraft/Rascal/reset.xml'''
     global opts
     v = home.split(',')
     if len(v) != 4:
@@ -43,12 +43,11 @@ def setup_template(home):
     altitude = float(v[2])
     heading = float(v[3])
     sitl_state.ground_height = altitude
-    template = os.path.join('aircraft', 'EasyStar', 'reset_template.xml')
-    reset = os.path.join('aircraft', 'EasyStar', 'reset00.xml')
+    template = os.path.join('aircraft', 'Rascal', 'reset_template.xml')
+    reset = os.path.join('aircraft', 'Rascal', 'reset.xml')
     xml = open(template).read() % { 'LATITUDE'  : str(latitude),
                                     'LONGITUDE' : str(longitude),
-                                    'ALTITUDE'   : str(altitude),
-                                    'HEADING'   : str(heading)}
+                                    'HEADING'   : str(heading) }
     open(reset, mode='w').write(xml)
     print("Wrote %s" % reset)
 
@@ -60,8 +59,8 @@ def setup_template(home):
     open(out, mode='w').write(xml)
     print("Wrote %s" % out)
 
-    template = os.path.join('jsbsim', 'easystar_test_template.xml')
-    out      = os.path.join('jsbsim', 'easystar_test.xml')
+    template = os.path.join('jsbsim', 'rascal_test_template.xml')
+    out      = os.path.join('jsbsim', 'rascal_test.xml')
     xml = open(template).read() % { 'JSBCONSOLEPORT'  : str(baseport+4) }
     open(out, mode='w').write(xml)
     print("Wrote %s" % out)
@@ -120,14 +119,11 @@ def update_wind(wind):
     jsb_set('atmosphere/psiw-rad', math.radians(direction))
     jsb_set('atmosphere/wind-mag-fps', speed/0.3048)
     
-global startq
-startq = 1
+
 def process_jsb_input(buf):
     '''process FG FDM input from JSBSim'''
     global fdm, fg_out, sim_out
-    startq = 0
     fdm.parse(buf)
-
     if fg_out:
         try:
             agl = fdm.get('agl', units='meters')
@@ -137,6 +133,7 @@ def process_jsb_input(buf):
         except socket.error as e:
             if e.errno not in [ errno.ECONNREFUSED ]:
                 raise
+
     simbuf = struct.pack('<17dI',
                          fdm.get('latitude', units='degrees'),
                          fdm.get('longitude', units='degrees'),
@@ -172,7 +169,7 @@ parser.add_option("--simin",   help="SITL input (IP:port)",          default="12
 parser.add_option("--simout",  help="SITL output (IP:port)",         default="127.0.0.1:5501")
 parser.add_option("--fgout",   help="FG display output (IP:port)",   default="127.0.0.1:5503")
 parser.add_option("--home",    type='string', help="home lat,lng,alt,hdg (required)")
-parser.add_option("--script",  type='string', help='jsbsim model script', default='jsbsim/easystar_test.xml')
+parser.add_option("--script",  type='string', help='jsbsim model script', default='jsbsim/rascal_test.xml')
 parser.add_option("--options", type='string', help='jsbsim startup options')
 parser.add_option("--elevon", action='store_true', default=False, help='assume elevon input')
 parser.add_option("--revthr", action='store_true', default=False, help='reverse throttle')
@@ -194,25 +191,21 @@ atexit.register(util.pexpect_close_all)
 
 setup_template(opts.home)
 
- start child
- cmd = "JSBSim --realtime --suspend --nice --simulation-rate=1000 --logdirectivefile=jsbsim/fgout.xml --script=%s" % opts.script
- if opts.options:
-     cmd += ' %s' % opts.options
-
-cmd = "echo hello"
+# start child
+cmd = "JSBSim --realtime --suspend --nice --simulation-rate=1000 --logdirectivefile=jsbsim/fgout.xml --script=%s" % opts.script
+if opts.options:
+    cmd += ' %s' % opts.options
 
 jsb = pexpect.spawn(cmd, logfile=sys.stdout, timeout=10)
 jsb.delaybeforesend = 0
 util.pexpect_autoclose(jsb)
 i = jsb.expect(["Successfully bound to socket for input on port (\d+)",
-                 "Could not bind to socket for input"])
+                "Could not bind to socket for input"])
 if i == 1:
-     print("Failed to start JSBSim - is another copy running?")
-     sys.exit(1)
-jsb_out_address = interpret_address("10.148.13.186:%u" % 5700)
+    print("Failed to start JSBSim - is another copy running?")
+    sys.exit(1)
 jsb_out_address = interpret_address("127.0.0.1:%u" % int(jsb.match.group(1)))
 jsb.expect("Creating UDP socket on port (\d+)")
-jsb_in_address = interpret_address("10.148.13.186:%u" % 5600)
 jsb_in_address = interpret_address("127.0.0.1:%u" % int(jsb.match.group(1)))
 jsb.expect("Successfully connected to socket for output")
 jsb.expect("JSBSim Execution beginning")
@@ -332,7 +325,6 @@ def main_loop():
 
 def exit_handler():
     '''exit the sim'''
-    print("HELP I'm DYING")
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     # JSBSim really doesn't like to die ...
