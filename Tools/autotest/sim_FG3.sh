@@ -145,8 +145,8 @@ if [ $WIPE_EEPROM == 1 ]; then
 fi
 
 
-#RUNSIM="python $autotest/jsbsim/runsimFG.py --simin=$SIMHOME --startControl=$SIMCONTROLS --arduRun=$ARDU_TO_RUN --runArdu=$ARDU_TO_RUN --runFg=$RUN_TO_FG --fgRun=$FG_TO_RUN"
-#PARMS="ArduPlane.parm"
+RUNSIM="python $autotest/jsbsim/runsimFG.py --simin=0.0.0.0:5502 --simout=0.0.0.0:5501 --fgout=0.0.0.0:5503 --fgin=0.0.0.0:5504"
+PARMS="ArduPlane.parm"
 if [ $WIPE_EEPROM == 1 ]; then
   cmd="$cmd -PFORMAT_VERSION=13 -PSKIP_GYRO_CAL=1 -PRC3_MIN=1000 -PRC3_TRIM=1000"
 fi
@@ -157,15 +157,15 @@ $autotest/run_in_terminal_window.sh "ardupilot" $cmd || exit 1
 
 #sleep 2
 #rm -f $tfile
-# if [ $EXTERNAL_SIM == 0 ]; then
-#     $autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
-#         echo "Failed to start simulator: $RUNSIM"
-#         exit 1
-#     }
-#     sleep 2
-# else
-#     echo "Using external simulator"
-# fi
+if [ $EXTERNAL_SIM == 0 ]; then
+    $autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
+        echo "Failed to start simulator: $RUNSIM"
+        exit 1
+    }
+    sleep 2
+else
+    echo "Using external simulator"
+fi
 
 # options=""
 # if [ $START_HIL == 0 ]; then

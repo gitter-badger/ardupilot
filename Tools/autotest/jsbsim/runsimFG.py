@@ -148,7 +148,7 @@ class SITLConnection(object):
 		#wind.direction  = direction*0.01
 		#wind.turbulance = turbulance*0.01
 
-		controlServos = servos(pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7],pwm[8],pwm[9], pwm[10])
+		controlServos = servos(pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7],pwm[8],pwm[9],pwm[10])
 		#controlServos.servosPrint();
 		#aileron  = (pwm[0]-1500)/500.0
 		#elevator = (pwm[1]-1500)/500.0
