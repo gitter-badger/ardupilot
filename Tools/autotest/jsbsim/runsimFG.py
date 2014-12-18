@@ -78,14 +78,14 @@ class control(object):
         self.throttle = throttle;
         self.elevator = elevator;
 
-    def myprint(self):
+    def controlPrint(self):
         print self.aileron;
         print self.rudder;
         print self.throttle;
         print self.elevator;
 
 class servos(object):
-    def __init__(self,ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8,ch9,ch10,ch11):
+    def __init__(self,ch1,ch2,ch3,ch4,ch5,ch6,ch7,ch8,ch9,ch10, ch11):
         self.ch1 = ch1
         self.ch2 = ch2
         self.ch3 = ch3
@@ -107,6 +107,8 @@ class servos(object):
 	        v = 1
 	    return int(1500 + v*500)
 
+    def servosPrint(self):
+        print self.ch1,' ',self.ch2,' ',self.ch3,' ',self.ch4,' ',self.ch5,' ',self.ch6,' ',self.ch7,' ',self.ch8,' ',self.ch9,' ',self.ch10,' ',self.ch11
 
 '''Read the UDP socket from FlightGear'''
 
@@ -143,29 +145,31 @@ class SITLConnection(object):
 		self.rudder = 0
 
 	#opts is the parsed options
-	def readPacket(self, opts):
+	def readPacket(self):
 		'''process control changes from SITL sim, returns type control'''
 		#the packet size for the sim input in 28 bytes
 		simbuf = APM.sim_in.recv(28)
-		control = list(struct.unpack('<14H', buf))
+		control = list(struct.unpack('<14H', simbuf))
 		pwm = control[:11]
-		(speed, direction, turbulance) = control[11:]
+		#(speed, direction, turbulance) = control[11:]
 
 		#not quite sure why this is coming from th SITL....
-		global wind
-		wind.speed      = speed*0.01
-		wind.direction  = direction*0.01
-		wind.turbulance = turbulance*0.01
+		#global wind
+		#wind.speed      = speed*0.01
+		#wind.direction  = direction*0.01
+		#wind.turbulance = turbulance*0.01
 
-		aileron  = (pwm[0]-1500)/500.0
-		elevator = (pwm[1]-1500)/500.0
-		throttle = (pwm[2]-1000)/1000.0
-		if opts.revthr:
-			self.throttle = 1.0 - throttle
-		rudder   = (pwm[3]-1500)/500.0
-        control_state = control(aileron,rudder,throttle,elevator)
-        control_state.myprint();
-        return control_state
+		controlServos = servos(pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7],pwm[8],pwm[9], pwm[10])
+		#controlServos.servosPrint();
+		#aileron  = (pwm[0]-1500)/500.0
+		#elevator = (pwm[1]-1500)/500.0
+		#throttle = (pwm[2]-1000)/1000.0
+		#if opts.revthr:
+		#	self.throttle = 1.0 - throttle
+		#rudder   = (pwm[3]-1500)/500.0
+		#control_state = control(aileron,rudder,throttle,elevator)
+		#control_state.myprint();
+		return controlServos
 
 	#state is of type fgFDM returns 
 	def sendSITL(state):
@@ -238,8 +242,7 @@ def mainLoop():
 			FG.printPacket()
 
 		if APM.sim_in.fileno() in rin:
-			APM.readPacket(opts)
-		print
+			APM.readPacket()
 
 mainLoop()
 

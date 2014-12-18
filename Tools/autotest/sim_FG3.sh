@@ -153,10 +153,10 @@ fi
 
 $autotest/run_in_terminal_window.sh "ardupilot" $cmd || exit 1
 
-trap kill_tasks SIGINT
+#trap kill_tasks SIGINT
 
-sleep 2
-rm -f $tfile
+#sleep 2
+#rm -f $tfile
 # if [ $EXTERNAL_SIM == 0 ]; then
 #     $autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
 #         echo "Failed to start simulator: $RUNSIM"
