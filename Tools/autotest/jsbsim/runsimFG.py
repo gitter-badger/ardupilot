@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 '''Test to see if we can communicate with FlightGear. This can
@@ -44,15 +45,16 @@ class FGConnection(object):
 	def sendPacket(self, pkt):
 		servos = []
 		#1 index because of the real world
-		for ch in range(1,12):
-			servos.append(getattr(pkt, 'ch%u' % ch))
-			buf = struct.pack('!11', *servos)
-			try:
-				self.fg_out.send(buf)
-			except socket.error as e:
-				if not e.errno in [ errno.ECONNREFUSED ]:
-					raise
-					return 0
+        for ch in range(1,12):
+            servos.append(servos.scale_channel(ch, getattr(pkt, 'ch%u' % ch)))
+    	buf = struct.pack('!11', *servos)
+    	try:
+            self.fg_out.send(buf)
+        except socket.error as e:
+            if not e.errno in [ errno.ECONNREFUSED ]:
+                raise
+            return 0
+		return 1
 
 	#parses the fdm packet from flightgear if there is one
 	def readPacket(self):
@@ -95,6 +97,15 @@ class servos(object):
         self.ch9 = ch9
         self.ch10 = ch10
         self.ch11 = ch11
+
+    def scale_channel(self, ch, value):
+	    '''scale a channel to 1000/1500/2000'''
+	    v = value/10000.0
+	    if v < -1:
+	        v = -1
+	    elif v > 1:
+	        v = 1
+	    return int(1500 + v*500)
 
     def servosPrint(self):
         print self.ch1,' ',self.ch2,' ',self.ch3,' ',self.ch4,' ',self.ch5,' ',self.ch6,' ',self.ch7,' ',self.ch8,' ',self.ch9,' ',self.ch10,' ',self.ch11
