@@ -5,6 +5,7 @@ import sys, os, pexpect, socket
 import math, time, select, struct, signal, errno
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'pysim'))
+
 import util, atexit, fdpexpect
 from pymavlink import fgFDM
 
@@ -17,6 +18,7 @@ class control_state(object):
         self.ground_height = 0
 
 sitl_state = control_state()
+
 
 def interpret_address(addrstr):
     '''interpret a IP:port string'''
@@ -38,21 +40,19 @@ def setup_initial(home):
 def process_sitl_input(buf):
     '''process control changes from SITL sim'''
     control = list(struct.unpack('!14H', buf))
+    print control
+    pwm = control[:11]
     aileron  = (pwm[0]-1500)/500.0
     elevator = (pwm[1]-1500)/500.0
     throttle = (pwm[2]-1000)/1000.0
     rudder   = (pwm[3]-1500)/500.0
-    if aileron != sitl_state.aileron:
-        sitl_state.aileron = aileron
-    if elevator != sitl_state.elevator:
-        sitl_state.elevator = elevator
-    if rudder != sitl_state.rudder:
-        sitl_state.rudder = rudder
-    if throttle != sitl_state.throttle:
-        sitl_state.throttle = throttle
+    sitl_state.aileron = aileron
+    sitl_state.elevator = elevator
+    sitl_state.rudder = rudder
+    sitl_state.throttle = throttle
 
 def process_input(buf):
-    '''process FG FDM input from JSBSim'''
+    '''Send buf info back to ArduPlane.elf'''
     global fdm, sim_out
     fdm.parse(buf)
 
@@ -94,9 +94,9 @@ parser.add_option("--options", type='string', help='flightgear startup options')
 os.chdir(util.reltopdir('Tools/autotest'))
 atexit.register(util.pexpect_close_all)
 
-setup_initial([10,10,0,0]);
+setup_initial([0,0,0,0]);
 
-cmd = "FlightGear"
+cmd = "fgfs --model-hz=1000 --enable-freeze"
 fg = pexpect.spawn(cmd, logfile=sys.stdout, timeout=10)
 fg.delaybeforesend = 0
 util.pexpect_autoclose(fg)
@@ -105,6 +105,7 @@ i = fg.expect(["Successfully bound to socket for input on port (\d+)",
 if i == 1:
     print("Failed to start FlightGear - is another copy running?")
     sys.exit(1)
+jsb_out_address = interpret_address("127.0.0.1:%u" % int(jsb.match.group(1)))
 
 # socket addresses
 sim_out_address = interpret_address(opts.simout)
@@ -136,9 +137,10 @@ def main_loop():
             util.check_parent()
             continue
     	tnow = time.time;
+
         if sim_in.fileno() in rin:
             buf = sim_in.recv(17*8+4)
-            process_input(buf)
+            process_input(buf) #take buf (info from ardupilot) and process it and send it back
 
         if tnow - last_sim_input > 0.2:
             if not paused:
@@ -158,8 +160,18 @@ def main_loop():
                 fdm.get('ay', units='mpss'),
                 fdm.get('az', units='mpss')))
 
+def exit_handler():
+    '''exit the sim'''
+    print("HELP I'm DYING")
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    sys.exit(1)
 
-
+try:
+    main_loop()
+except:
+    exit_handler()
+    raise
 
 
 
