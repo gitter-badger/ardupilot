@@ -145,7 +145,7 @@ if [ $WIPE_EEPROM == 1 ]; then
 fi
 
 
-RUNSIM="python $autotest/jsbsim/runsimFG.py --simin=0.0.0.0:5502 --simout=0.0.0.0:5501 --fgout=0.0.0.0:5503 --fgin=0.0.0.0:5504"
+RUNSIM="python $autotest/jsbsim/runsimFG.py --simin=0.0.0.0:5502 --simout=0.0.0.0:5501 --fgout=10.0.2.2:5513 --fgin=0.0.0.0:5504"
 PARMS="ArduPlane.parm"
 if [ $WIPE_EEPROM == 1 ]; then
   cmd="$cmd -PFORMAT_VERSION=13 -PSKIP_GYRO_CAL=1 -PRC3_MIN=1000 -PRC3_TRIM=1000"
@@ -157,25 +157,25 @@ $autotest/run_in_terminal_window.sh "ardupilot" $cmd || exit 1
 
 #sleep 2
 #rm -f $tfile
-if [ $EXTERNAL_SIM == 0 ]; then
-    $autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
-        echo "Failed to start simulator: $RUNSIM"
-        exit 1
-    }
-    sleep 2
-else
-    echo "Using external simulator"
-fi
+# if [ $EXTERNAL_SIM == 0 ]; then
+#     $autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
+#         echo "Failed to start simulator: $RUNSIM"
+#         exit 1
+#     }
+#     sleep 2
+# else
+#     echo "Using external simulator"
+# fi
 
-# options=""
-# if [ $START_HIL == 0 ]; then
-# options="--master $MAVLINK_PORT --sitl $SIMOUT_PORT"
-# fi
-# options="$options --out 127.0.0.1:14550 --out 127.0.0.1:14551"
-# if [ $WIPE_EEPROM == 1 ]; then
-#     extra_cmd="param forceload $autotest/$PARMS; param fetch"
-# fi
-# mavproxy.py $options --cmd="$extra_cmd" $*
+options=""
+if [ $START_HIL == 0 ]; then
+options="--master $MAVLINK_PORT"
+fi
+options="$options --out 127.0.0.1:14550 --out 127.0.0.1:14551"
+if [ $WIPE_EEPROM == 1 ]; then
+    extra_cmd="param forceload $autotest/$PARMS; param fetch"
+fi
+mavproxy.py $options --cmd="$extra_cmd"
 echo "Hit return to continue"
 read not_matter
 kill_tasks

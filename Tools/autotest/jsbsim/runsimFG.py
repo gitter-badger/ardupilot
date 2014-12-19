@@ -46,8 +46,10 @@ class FGConnection(object):
 		servoList = []
 		#1 index because of the real world
 		for ch in range(1,12):
-			servoList.append(servoList.scale_channel(ch, getattr(pkt, 'ch%u' % ch)))
-			buf = struct.pack('!11', *servoList)
+			#servoList.append(pkt.scale_channel(ch, getattr(pkt, 'ch%u' % ch)))
+			servoList.append(getattr(pkt, 'ch%u' % ch))
+		buf = struct.pack('!11H', *servoList)
+		print servoList
 		try:
 			self.fg_out.send(buf)
 		except socket.error as e:
@@ -125,12 +127,12 @@ class SITLConnection(object):
 		self.in_address = in_address
 		self.out_address = out_address
 
-		#intput from SITL
+		#input from SITL
 		self.sim_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.sim_in.bind(in_address)
 		self.sim_in.setblocking(0)
 
-		#output from the SITL
+		#output to the SITL
 		self.sim_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.sim_out.connect(out_address)
 		self.sim_out.setblocking(0)
@@ -157,7 +159,8 @@ class SITLConnection(object):
 		#wind.direction  = direction*0.01
 		#wind.turbulance = turbulance*0.01
 
-		self.controlServos = servos(pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6],pwm[7],pwm[8],pwm[9], pwm[10])
+		self.controlServos = servos(*pwm)
+		#self.controlServos.servosPrint()
 		#controlServos.servosPrint();
 		#aileron  = (pwm[0]-1500)/500.0
 		#elevator = (pwm[1]-1500)/500.0
@@ -169,7 +172,7 @@ class SITLConnection(object):
 		#control_state.myprint();
 
 	#state is of type fgFDM returns 
-	def sendSITL(state):
+	def sendPacket(self,state):
 		simbuf = struct.pack('<17dI',
 			state.get('latitude', units='degrees'),
 			state.get('longitude', units='degrees'),
@@ -189,6 +192,11 @@ class SITLConnection(object):
 			state.get('psi', units='degrees'),
 			state.get('vcas', units='mps'),
 			0x4c56414f) 
+		print state.get('latitude', units='degrees'),' ',state.get('longitude', units='degrees'),' ',state.get('altitude', units='meters'),' ',state.get('psi', units='degrees'),
+		print state.get('v_north', units='mps'),' ',state.get('v_east', units='mps'),' ',state.get('v_down', units='mps'),' ',state.get('A_X_pilot', units='mpss'),' ',state.get('A_Y_pilot', units='mpss'),
+		print state.get('A_Z_pilot', units='mpss'),' ',state.get('phidot', units='dps'),' ',state.get('thetadot', units='dps'),' ',state.get('psidot', units='dps'),
+		print state.get('phi', units='degrees'),' ',state.get('theta', units='degrees'),' ',state.get('psi', units='degrees'),' ',state.get('vcas', units='mps'),
+		simbuf = struct.pack('<17dI', 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0x4c56414f)
 		try:
 			APM.sim_out.send(simbuf)
 		except:
@@ -249,6 +257,7 @@ def mainLoop():
 		if FG.fg_out.fileno() in rout:
 			if receivedST:
 				FG.sendPacket(APM.controlServos)
+				FG.printPacket()
 
 		if APM.sim_out.fileno() in rout:
 			if receivedFG:
