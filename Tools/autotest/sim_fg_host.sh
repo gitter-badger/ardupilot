@@ -9,4 +9,5 @@ fgfs \
 	--aircraft=easystar \
 	--wind=0@0 \
 	--httpd=5400 \
+	--in-air=5000\
     $*
