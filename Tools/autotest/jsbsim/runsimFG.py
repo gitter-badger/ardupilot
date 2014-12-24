@@ -45,11 +45,10 @@ class FGConnection(object):
 	def sendPacket(self, pkt):
 		servoList = []
 		#1 index because of the real world
-		for ch in range(1,12):
+		for ch in range(1,5):
 			#servoList.append(pkt.scale_channel(ch, getattr(pkt, 'ch%u' % ch)))
 			servoList.append(getattr(pkt, 'ch%u' % ch))
-		buf = struct.pack('!11H', *servoList)
-		print servoList
+		buf = struct.pack('!4d', *servoList)
 		try:
 			self.fg_out.send(buf)
 		except socket.error as e:
@@ -97,14 +96,29 @@ class servos(object):
         self.ch10 = ch10
         self.ch11 = ch11
 
-    def scale_channel(self, ch, value):
+    def set_servos(self, servoL):
+		self.ch1 = self.scale_channel(servoL[0])
+		self.ch2 = self.scale_channel(servoL[1])
+		self.ch3 = self.scale_channel(servoL[2])
+		self.ch4 = self.scale_channel(servoL[3])
+		self.ch5 = self.scale_channel(servoL[4])
+		self.ch6 = self.scale_channel(servoL[5])
+		self.ch7 = self.scale_channel(servoL[6])
+		self.ch8 = self.scale_channel(servoL[7])
+		self.ch9 = self.scale_channel(servoL[8])
+		self.ch10 = self.scale_channel(servoL[9])
+		self.ch11 = self.scale_channel(servoL[10])
+
+
+    def scale_channel(self, value):
 	    '''scale a channel to 1000/1500/2000'''
-	    v = value/10000.0
+	    v = (value-1500)/500.0
 	    if v < -1:
 	        v = -1
 	    elif v > 1:
 	        v = 1
-	    return int(1500 + v*500)
+	    #used to add 1500 and *500, but this was scaled wrong -> just using v
+	    return float(v)
 
     def servosPrint(self):
         print self.ch1,' ',self.ch2,' ',self.ch3,' ',self.ch4,' ',self.ch5,' ',self.ch6,' ',self.ch7,' ',self.ch8,' ',self.ch9,' ',self.ch10,' ',self.ch11
@@ -142,7 +156,7 @@ class SITLConnection(object):
 		self.elevator = 0
 		self.throttle = 0
 		self.rudder = 0
-		self.controlServos = 0
+		self.controlServos = servos(0,0,0,0,0,0,0,0,0,0,0)
 
 	#opts is the parsed options
 	def readPacket(self):
@@ -159,7 +173,7 @@ class SITLConnection(object):
 		#wind.direction  = direction*0.01
 		#wind.turbulance = turbulance*0.01
 
-		self.controlServos = servos(*pwm)
+		self.controlServos.set_servos(pwm)
 		#self.controlServos.servosPrint()
 		#controlServos.servosPrint();
 		#aileron  = (pwm[0]-1500)/500.0
@@ -176,7 +190,7 @@ class SITLConnection(object):
 		simbuf = struct.pack('<17dI',
 			state.get('latitude', units='degrees'),
 			state.get('longitude', units='degrees'),
-			state.get('altitude', units='meters'),
+			state.get('altitude', units='meters')+2000,
 			state.get('psi', units='degrees'),
 			state.get('v_north', units='mps'),
 			state.get('v_east', units='mps'),
@@ -192,11 +206,6 @@ class SITLConnection(object):
 			state.get('psi', units='degrees'),
 			state.get('vcas', units='mps'),
 			0x4c56414f) 
-		print state.get('latitude', units='degrees'),' ',state.get('longitude', units='degrees'),' ',state.get('altitude', units='meters'),' ',state.get('psi', units='degrees'),
-		print state.get('v_north', units='mps'),' ',state.get('v_east', units='mps'),' ',state.get('v_down', units='mps'),' ',state.get('A_X_pilot', units='mpss'),' ',state.get('A_Y_pilot', units='mpss'),
-		print state.get('A_Z_pilot', units='mpss'),' ',state.get('phidot', units='dps'),' ',state.get('thetadot', units='dps'),' ',state.get('psidot', units='dps'),
-		print state.get('phi', units='degrees'),' ',state.get('theta', units='degrees'),' ',state.get('psi', units='degrees'),' ',state.get('vcas', units='mps'),
-		simbuf = struct.pack('<17dI', 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0x4c56414f)
 		try:
 			APM.sim_out.send(simbuf)
 		except:
@@ -210,12 +219,13 @@ class SITLConnection(object):
 # main program
 #localhost on the VM is 0.0.0.0 NOT 127.0.0.1 
 #If you're UDP doesn't work, this is the issue
+#Server: fgout (on the output)
 from optparse import OptionParser
 parser = OptionParser("runsim.py [options]")
 parser.add_option("--simin",   help="SITL input (IP:port)",          default="127.0.0.1:5502")
 parser.add_option("--simout",  help="SITL output (IP:port)",         default="127.0.0.1:5501")
-parser.add_option("--fgout",   help="Output to FG (IP:port)",   default="127.0.0.1:5503")
-parser.add_option("--fgin",   help="Input from FG (IP:port)",   default="127.0.0.1:5504")
+parser.add_option("--fgout",   help="Output to FG (IP:port)",   default="0.0.0.0:5503")
+parser.add_option("--fgin",   help="Input from FG (IP:port)",   default="0.0.0.0:5504")
 parser.add_option("--options", type='string', help='jsbsim startup options')
 parser.add_option("--elevon", action='store_true', default=False, help='assume elevon input')
 parser.add_option("--revthr", action='store_true', default=False, help='reverse throttle')
@@ -256,8 +266,9 @@ def mainLoop():
 
 		if FG.fg_out.fileno() in rout:
 			if receivedST:
+				APM.controlServos.servosPrint()
 				FG.sendPacket(APM.controlServos)
-				FG.printPacket()
+				#FG.printPacket()
 
 		if APM.sim_out.fileno() in rout:
 			if receivedFG:
