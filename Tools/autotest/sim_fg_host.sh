@@ -10,7 +10,7 @@ fgfs \
 	--wind=2@10 \
 	--httpd=5400 \
 	--timeofday=noon \
-	--altitude=10 \
+	--altitude=2 \
 	--vc=100 \
 	--enable-freeze \
     $*
