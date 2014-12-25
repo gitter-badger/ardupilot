@@ -120,9 +120,9 @@ pushd $autotest/../../$VEHICLE || {
 if [ $CLEAN_BUILD == 1 ]; then
     make clean
 fi
-make $BUILD_TARGET -j$NUM_PROCS || {
+make $BUILD_TARGET -j4 || {
     make clean
-    make $BUILD_TARGET -j$NUM_PROCS
+    make $BUILD_TARGET -j4
 }
 popd
 fi
@@ -139,7 +139,7 @@ fi
 
 # SIMCONTROLS="0,0,0,0"
 
-cmd="/tmp/$VEHICLE.build/$VEHICLE.elf -I$INSTANCE"
+cmd="/ardubuilds/$VEHICLE.build/$VEHICLE.elf -I$INSTANCE"
 if [ $WIPE_EEPROM == 1 ]; then
     cmd="$cmd -w"
 fi

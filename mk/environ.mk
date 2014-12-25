@@ -67,6 +67,10 @@ endif
 # Work out where we are going to be building things
 #
 TMPDIR			?=	/tmp
+#
+#Added this directory so that we don't have to build every single time
+#
+ARDU_BUILD_DIR ?= /ardubuilds
 
 ifneq ($(findstring px4, $(MAKECMDGOALS)),)
 # when building px4 we need all sources to be inside the sketchbook directory
@@ -93,13 +97,13 @@ BUILDROOT		:=	$(SKETCHBOOK)/Build.$(SKETCH)
 endif
 
 ifeq ($(BUILDROOT),)
-BUILDROOT		:=	$(abspath $(TMPDIR)/$(SKETCH).build)
+BUILDROOT		:=	$(abspath $(ARDU_BUILD_DIR)/$(SKETCH).build)
 endif
 
 ifneq ($(findstring CYGWIN, $(SYSTYPE)),)
   # Workaround a $(abspath ) bug on cygwin
   ifeq ($(BUILDROOT),)
-    BUILDROOT	:=	C:$(TMPDIR)/$(SKETCH).build
+    BUILDROOT	:=	C:$(ARDU_BUILD_DIR)/$(SKETCH).build
     $(warning your abspath function is not working)
     $(warning > setting BUILDROOT to $(BUILDROOT))
   else

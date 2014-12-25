@@ -7,7 +7,10 @@ fgfs \
 	--generic=socket,in,40,127.0.0.1,5503,udp,MAVLink \
 	--fg-aircraft="$AUTOTESTDIR/aircraft" \
 	--aircraft=easystar \
-	--wind=0@0 \
+	--wind=2@10 \
 	--httpd=5400 \
-	--in-air=5000\
+	--timeofday=noon \
+	--altitude=10 \
+	--vc=100 \
+	--enable-freeze \
     $*

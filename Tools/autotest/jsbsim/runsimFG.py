@@ -112,7 +112,7 @@ class servos(object):
 
     def scale_channel(self, value):
 	    '''scale a channel to 1000/1500/2000'''
-	    v = (value-1500)/500.0
+	    v = (value-1500)/400.0
 	    if v < -1:
 	        v = -1
 	    elif v > 1:
@@ -190,7 +190,7 @@ class SITLConnection(object):
 		simbuf = struct.pack('<17dI',
 			state.get('latitude', units='degrees'),
 			state.get('longitude', units='degrees'),
-			state.get('altitude', units='meters')+2000,
+			state.get('altitude', units='meters'),
 			state.get('psi', units='degrees'),
 			state.get('v_north', units='mps'),
 			state.get('v_east', units='mps'),
