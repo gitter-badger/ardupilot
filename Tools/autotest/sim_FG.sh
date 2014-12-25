@@ -167,15 +167,15 @@ rm -f $tfile
      echo "Using external simulator"
  fi
 
-#options=""
-#if [ $START_HIL == 0 ]; then
-#options="--master $MAVLINK_PORT"
-#fi
-#options="$options --out 0.0.0.0:14550 --out 0.0.0.0:14551"
-#if [ $WIPE_EEPROM == 1 ]; then
-#    extra_cmd="param forceload $autotest/$PARMS; param fetch"
-#fi
-#mavproxy.py $options --cmd="$extra_cmd"
+options=""
+if [ $START_HIL == 0 ]; then
+options="--master $MAVLINK_PORT"
+fi
+options="$options --out 0.0.0.0:14550 --out 0.0.0.0:14551"
+if [ $WIPE_EEPROM == 1 ]; then
+   extra_cmd="param forceload $autotest/$PARMS; param fetch"
+fi
+mavproxy.py $options --cmd="$extra_cmd"
 echo "Hit return to continue"
 read not_matter
 kill_tasks
