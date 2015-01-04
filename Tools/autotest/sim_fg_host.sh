@@ -5,12 +5,13 @@ AUTOTESTDIR=$(dirname $0)
 fgfs \
 	--native-fdm=socket,out,40,127.0.0.1,5514,udp \
 	--generic=socket,in,40,127.0.0.1,5503,udp,MAVLink \
-	--fg-aircraft="$AUTOTESTDIR/aircraft" \
-	--aircraft=easystar \
-	--wind=2@10 \
+	--wind=0@0 \
 	--httpd=5400 \
 	--timeofday=noon \
-	--altitude=2 \
-	--vc=100 \
+	--fg-aircraft="$AUTOTESTDIR/aircraft" \
+	--aircraft=Rascal110-JSBSim \
+	#--altitude=10000 \
+	#--vc=100 \
+
 	--enable-freeze \
     $*

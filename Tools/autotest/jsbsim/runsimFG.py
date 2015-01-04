@@ -97,9 +97,13 @@ class servos(object):
         self.ch11 = ch11
 
     def set_servos(self, servoL):
+    	#ailerons
 		self.ch1 = self.scale_channel(servoL[0])
+		#elevator
 		self.ch2 = self.scale_channel(servoL[1])
-		self.ch3 = self.scale_channel(servoL[2])
+		#throttle
+		self.ch3 = self.scale_channel(servoL[2],1000)
+		#rudder
 		self.ch4 = self.scale_channel(servoL[3])
 		self.ch5 = self.scale_channel(servoL[4])
 		self.ch6 = self.scale_channel(servoL[5])
@@ -110,9 +114,9 @@ class servos(object):
 		self.ch11 = self.scale_channel(servoL[10])
 
 
-    def scale_channel(self, value):
+    def scale_channel(self, value, midval=1500, divval=600.0):
 	    '''scale a channel to 1000/1500/2000'''
-	    v = (value-1500)/400.0
+	    v = (value-midval)/divval
 	    if v < -1:
 	        v = -1
 	    elif v > 1:
