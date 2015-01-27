@@ -11,6 +11,7 @@
 #include "UARTDriver.h"
 #include "Scheduler.h"
 
+
 #include <stdio.h>
 #include <signal.h>
 #include <getopt.h>
@@ -27,6 +28,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
 
 void print_trace() {
     char pid_buf[30];
@@ -77,12 +79,13 @@ uint16_t SITL_State::pwm_input[8];
 bool SITL_State::new_rc_input;
 
 // catch floating point exceptions
-void SITL_State::_sig_fpe(int signum)
-{
-	fprintf(stderr, "ERROR: Floating point exception - aborting\n");
-	fprintf(stderr, "%d \n", signum);
-    abort();
-}
+// void SITL_State::_sig_fpe(int signum)
+// {
+// 	fprintf(stderr, "ERROR: Floating point exception - aborting\n");
+// 	fprintf(stderr, "%d \n", signum);
+//     abort();
+// }
+
 
 void SITL_State::_usage(void)
 {
@@ -98,7 +101,7 @@ void SITL_State::_parse_command_line(int argc, char * const argv[])
 {
 	int opt;
 
-	signal(SIGFPE, _sig_fpe);
+	//signal(SIGFPE, _sig_fpe);
 	// No-op SIGPIPE handler
 	signal(SIGPIPE, SIG_IGN);
 

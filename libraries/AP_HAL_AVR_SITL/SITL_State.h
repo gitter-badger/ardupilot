@@ -108,7 +108,7 @@ private:
     static Vector3f _rand_vec3f(void);
 
     // signal handlers
-    static void _sig_fpe(int signum);
+    //static void _sig_fpe(int signum);
     static void _timer_handler(int signum);
 
     // internal state
