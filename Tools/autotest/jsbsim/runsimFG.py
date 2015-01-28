@@ -102,7 +102,7 @@ class servos(object):
 		#elevator
 		self.ch2 = self.scale_channel(servoL[1])
 		#throttle
-		self.ch3 = self.scale_channel(servoL[2],1000)
+		self.ch3 = self.scale_channel(servoL[2], 1000)
 		#rudder
 		self.ch4 = self.scale_channel(servoL[3])
 		self.ch5 = self.scale_channel(servoL[4])
@@ -162,7 +162,6 @@ class SITLConnection(object):
 		self.rudder = 0
 		self.controlServos = servos(0,0,0,0,0,0,0,0,0,0,0)
 
-	#opts is the parsed options
 	def readPacket(self):
 		'''process control changes from SITL sim, returns type control'''
 		#the packet size for the sim input in 28 bytes
@@ -215,10 +214,6 @@ class SITLConnection(object):
 		except:
 			raise
 
-		#TODO: Acutally send the information 
-
-
-
 ##################
 # main program
 #localhost on the VM is 0.0.0.0 NOT 127.0.0.1 
@@ -270,7 +265,7 @@ def mainLoop():
 
 		if FG.fg_out.fileno() in rout:
 			if receivedST:
-				APM.controlServos.servosPrint()
+				#APM.controlServos.servosPrint()
 				FG.sendPacket(APM.controlServos)
 				#FG.printPacket()
 
