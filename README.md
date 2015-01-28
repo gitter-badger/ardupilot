@@ -10,11 +10,12 @@
 >>Antenna Tracker : [code](https://github.com/diydrones/ardupilot/tree/master/AntennaTracker), [wiki](http://copter.ardupilot.com/wiki/common-antennatracker-introduction)
 
 ##How to get FlightGear Simulation Running##
-1. Statup vagrant using the vagrant file provided
-2. Add fgfs to your patht
+1. Statup vagrant using the vagrantfile provided
+2. Add fgfs to your path
+2a. Move the MAVLink.xml file in Tools/autotest/jsmsim to Flightgear/Resorces/data/Protocol
 3. On the VM go to ArduPlane and run sim_FG.sh
 4. Run sh ardupilot/Tools/autotest/sim_fg_host.sh on the host
-5. NOTE: If you can't run this, run chmod 777 sim_fg_host.sh firs
+5. NOTE: If you can't run this, run chmod 777 sim_fg_host.sh first
 6. Starts the plane in the air. If it ardu dies, pause flightgear (type p) then 
 restart ardu (by running sim_FG.sh again) then unpause flightgear (type p)
 
