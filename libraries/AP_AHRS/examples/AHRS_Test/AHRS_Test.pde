@@ -37,6 +37,7 @@
 #include <AP_HAL_AVR_SITL.h>
 #include <AP_HAL_Empty.h>
 #include <AP_HAL_PX4.h>
+#include <AP_BattMonitor.h>
 
 const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
@@ -50,7 +51,7 @@ AP_ADC_ADS7844 adc;
 AP_Compass_HMC5843 compass;
 
 AP_GPS gps;
-AP_Baro_HIL baro;
+AP_Baro baro;
 
 // choose which AHRS system to use
 AP_AHRS_DCM  ahrs(ins, baro, gps);

@@ -77,6 +77,7 @@ public:
     bool use_compass(void);
 
     NavEKF &get_NavEKF(void) { return EKF; }
+    const NavEKF &get_NavEKF_const(void) const { return EKF; }
 
     // return secondary attitude solution if available, as eulers in radians
     bool get_secondary_attitude(Vector3f &eulers);
@@ -113,7 +114,7 @@ public:
     void set_ekf_use(bool setting) { _ekf_use.set(setting); }
 
     // is the AHRS subsystem healthy?
-    bool healthy(void);
+    bool healthy(void) const;
 
     // true if the AHRS has completed initialisation
     bool initialised(void) const;

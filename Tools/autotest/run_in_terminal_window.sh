@@ -15,6 +15,9 @@ elif [ -x /usr/bin/konsole ]; then
   /usr/bin/konsole --hold -e $*
 elif [ -x /usr/bin/gnome-terminal ]; then
   /usr/bin/gnome-terminal -e "$*"
+elif [ -n "$STY" ]; then
+  # We are running inside of screen, try to start it there
+  /usr/bin/screen -X screen -t $name $*
 else
   #screen -X -S $name quit
   #screen -S $name -dm $*
