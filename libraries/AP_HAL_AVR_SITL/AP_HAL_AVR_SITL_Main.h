@@ -16,8 +16,10 @@
 #if CONFIG_HAL_BOARD == HAL_BOARD_AVR_SITL
 #define AP_HAL_MAIN() extern "C" {\
     int main (int argc, char * const argv[]) {	\
+        #ifndef _SITL_
         icky_global_program_name = argv[0]; \
         ERROR::set_signal_handler(); \
+        #endif
 	    hal.init(argc, argv); \
         setup(); \
         hal.scheduler->system_initialized(); \

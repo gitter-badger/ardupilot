@@ -1,3 +1,5 @@
+#ifdef _SITL_
+
 #ifndef __ERROR_H__
 #define __ERROR_H__
 
@@ -20,5 +22,7 @@ int addr2line(char const * const program_name, void const * const addr);
 void posix_print_stack_trace();
 
 extern char const * icky_global_program_name;
+
+#endif
 
 #endif
