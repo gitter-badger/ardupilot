@@ -14,7 +14,7 @@
 ##How to get FlightGear Simulation Running##
 1. Statup vagrant using the vagrantfile provided
 2. Add fgfs to your path
-2a. Move the MAVLink.xml file in Tools/autotest/jsmsim to Flightgear/Resorces/data/Protocol
+2a. Move the MAVLink.xml file in Tools/autotest/jsbsim to Flightgear/Resorces/data/Protocol
 2b. Make the ardubuilds folder and set the permissions to 777
 3. Run sh ardupilot/Tools/autotest/sim_fg_host.sh on the host
 3a. NOTE: If you can't run this, run chmod 777 sim_fg_host.sh first
