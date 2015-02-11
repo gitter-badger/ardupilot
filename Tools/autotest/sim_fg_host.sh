@@ -10,7 +10,7 @@ fgfs \
 	--timeofday=noon \
 	--fg-aircraft="$AUTOTESTDIR/aircraft" \
 	--aircraft=easystar\
-	--altitude=5 \
+	--altitude=6 \
 	--vc=100 \
 
 	--enable-freeze \

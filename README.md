@@ -15,11 +15,15 @@
 1. Statup vagrant using the vagrantfile provided
 2. Add fgfs to your path
 2a. Move the MAVLink.xml file in Tools/autotest/jsmsim to Flightgear/Resorces/data/Protocol
-3. On the VM go to ArduPlane and run sim_FG.sh
-4. Run sh ardupilot/Tools/autotest/sim_fg_host.sh on the host
-5. NOTE: If you can't run this, run chmod 777 sim_fg_host.sh first
-6. Starts the plane in the air. If it ardu dies, pause flightgear (type p) then 
-restart ardu (by running sim_FG.sh again) then unpause flightgear (type p)
+2b. Make the ardubuilds folder and set the permissions to 777
+3. Run sh ardupilot/Tools/autotest/sim_fg_host.sh on the host
+3a. NOTE: If you can't run this, run chmod 777 sim_fg_host.sh first
+3b. Press (p) to pause the sim
+4. On the VM go to ArduPlane and run sim_FG.sh
+5. Connect to the Autopilot on the host through 127.0.0.1:5555
+5a. This can be done through APM Planner or MAVProxy
+6. Unpause FlightGear by pressing (p)
+7. To kill ardupilote, do control-C then press enter
 
 
 
