@@ -33,6 +33,9 @@
 #include <AP_Terrain.h>
 #include <AP_Scheduler.h>
 #include <AP_BattMonitor.h>
+#include <AP_SerialManager.h>
+#include <AP_Rally.h>
+#include <RC_Channel.h>
 
 const AP_HAL::HAL& hal = AP_HAL_BOARD_DRIVER;
 
@@ -45,8 +48,8 @@ void setup()
 
     // setup for analog pin 13
     AP_Param::set_object_value(&sonar, sonar.var_info, "_TYPE", RangeFinder::RangeFinder_TYPE_ANALOG);
-    AP_Param::set_object_value(&sonar, sonar.var_info, "_PIN", 13);
-    AP_Param::set_object_value(&sonar, sonar.var_info, "_SCALING", 3.10);
+    AP_Param::set_object_value(&sonar, sonar.var_info, "_PIN", 14);
+    AP_Param::set_object_value(&sonar, sonar.var_info, "_SCALING", 2.04);
 
     // initialise sensor, delaying to make debug easier
     hal.scheduler->delay(2000);
