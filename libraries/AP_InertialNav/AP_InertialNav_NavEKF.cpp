@@ -52,6 +52,21 @@ nav_filter_status AP_InertialNav_NavEKF::get_filter_status() const
 }
 
 /**
+ * get_origin - returns the inertial navigation origin in lat/lon/alt
+ */
+struct Location AP_InertialNav_NavEKF::get_origin() const {
+    if (_ahrs.have_inertial_nav()) {
+        struct Location ret;
+        if (!_ahrs_ekf.get_NavEKF().getOriginLLH(ret)) {
+            // initialise location to all zeros if origin not yet set
+            memset(&ret, 0, sizeof(ret));
+        }
+        return ret;
+    }
+    return AP_InertialNav::get_origin();
+}
+
+/**
  * get_position - returns the current position relative to the home location in cm.
  *
  * the home location was set with AP_InertialNav::set_home_position(int32_t, int32_t)

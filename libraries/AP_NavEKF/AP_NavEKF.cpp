@@ -452,11 +452,14 @@ void NavEKF::ResetPosition(void)
         // write to state vector and compensate for GPS latency
         state.position.x = gpsPosNE.x + gpsPosGlitchOffsetNE.x + 0.001f*velNED.x*float(_msecPosDelay);
         state.position.y = gpsPosNE.y + gpsPosGlitchOffsetNE.y + 0.001f*velNED.y*float(_msecPosDelay);
+        // the estimated states at the last GPS measurement are set equal to the GPS measurement to prevent transients on the first fusion
+        statesAtPosTime.position.x = gpsPosNE.x;
+        statesAtPosTime.position.y = gpsPosNE.y;
     }
     // stored horizontal position states to prevent subsequent GPS measurements from being rejected
     for (uint8_t i=0; i<=49; i++){
-        storedStates[i].position[0] = state.position[0];
-        storedStates[i].position[1] = state.position[1];
+        storedStates[i].position.x = state.position.x;
+        storedStates[i].position.y = state.position.y;
     }
 }
 
@@ -737,11 +740,11 @@ void NavEKF::UpdateFilter()
 // select fusion of velocity, position and height measurements
 void NavEKF::SelectVelPosFusion()
 {
-    // check for new data, specify which measurements should be used and check data for freshness
-    if (PV_AidingMode == AID_ABSOLUTE) {
+    // check for and read new GPS data
+    readGpsData();
 
-        // check for and read new GPS data
-        readGpsData();
+    // Specify which measurements should be used and check data for freshness
+    if (PV_AidingMode == AID_ABSOLUTE) {
 
         // check if we can use opticalflow as a backup
         bool optFlowBackup = (flowDataValid && !hgtTimeout);
@@ -4006,11 +4009,12 @@ void NavEKF::readGpsData()
         // calculate a position offset which is applied to NE position and velocity wherever it is used throughout code to allow GPS position jumps to be accommodated gradually
         decayGpsOffset();
     }
-    // If too long since last fix time or we are not allowed to use GPS, we declare no GPS available for use
-    if ((imuSampleTime_ms - lastFixTime_ms < 1000) || _fusionModeGPS == 3) {
-        gpsNotAvailable = false;
-    } else {
+
+    // If no previous GPS lock or told not to use it, we declare the  GPS unavailable available for use
+    if ((_ahrs->get_gps().status() < AP_GPS::GPS_OK_FIX_3D) || _fusionModeGPS == 3) {
         gpsNotAvailable = true;
+    } else {
+        gpsNotAvailable = false;
     }
 }
 
@@ -4437,7 +4441,7 @@ bool NavEKF::optFlowDataPresent(void) const
 // return true if the vehicle is requesting the filter to be ready for flight
 bool NavEKF::getVehicleArmStatus(void) const
 {
-    return _ahrs->get_armed() || _ahrs->get_correct_centrifugal();
+    return hal.util->get_soft_armed() || _ahrs->get_correct_centrifugal();
 }
 
 // return true if we should use the compass
@@ -4582,11 +4586,6 @@ void NavEKF::performArmingChecks()
         }
         // zero stored velocities used to do dead-reckoning
         heldVelNE.zero();
-        // zero last known position used to deadreckon if GPS is lost when arming
-        // keep position during disarm to provide continuing indication of last known position
-        if (vehicleArmed) {
-            lastKnownPositionNE.zero();
-        }
         // set various  useage modes based on the condition at arming. These are then held until the vehicle is disarmed.
         if (!vehicleArmed) {
             PV_AidingMode = AID_NONE; // When dis-armed, we only estimate orientation & height using the constant position mode
@@ -4595,6 +4594,9 @@ void NavEKF::performArmingChecks()
             constPosMode = true;
             constVelMode = false; // always clear constant velocity mode if constant position mode is active
             lastConstVelMode = false;
+            // store the current position to be used to keep reporting the last known position when disarmed
+            lastKnownPositionNE.x = state.position.x;
+            lastKnownPositionNE.y = state.position.y;
         } else if (_fusionModeGPS == 3) { // arming when GPS useage has been prohibited
             if (optFlowDataPresent()) {
                 PV_AidingMode = AID_RELATIVE; // we have optical flow data and can estimate all vehicle states
@@ -4618,8 +4620,16 @@ void NavEKF::performArmingChecks()
                 constVelMode = false; // always clear constant velocity mode if constant position mode is active
             } else {
                 PV_AidingMode = AID_ABSOLUTE; // we have GPS data and can estimate all vehicle states
+                posTimeout = false;
+                velTimeout = false;
                 constPosMode = false;
                 constVelMode = false;
+                // we need to reset the GPS timers to prevent GPS timeout logic being invoked on entry into GPS aiding
+                // this is becasue the EKF can be interrupted for an arbitrary amount of time during vehicle arming checks
+                lastFixTime_ms = imuSampleTime_ms;
+                secondLastFixTime_ms = imuSampleTime_ms;
+                // reset the last valid position fix time to prevent unwanted activation of GPS glitch logic
+                posFailTime = imuSampleTime_ms;
             }
         }
         // Reset filter positon, height and velocity states on arming or disarming
