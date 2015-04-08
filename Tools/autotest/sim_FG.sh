@@ -156,7 +156,7 @@ $autotest/run_in_terminal_window.sh "ardupilot" $cmd || exit 1
 #trap kill_tasks SIGINT
 
 sleep 2
-rm -f $tfile
+rm -f $tfil
  if [ $EXTERNAL_SIM == 0 ]; then
      $autotest/run_in_terminal_window.sh "Simulator" $RUNSIM || {
          echo "Failed to start simulator: $RUNSIM"

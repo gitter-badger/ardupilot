@@ -192,7 +192,7 @@
                 </orient>
                 <p_factor>1.0</p_factor>
             </thruster>
-        </engine>
+        </>
 		<!--throws warning if tank not included, no real purpose-->
 		<tank type="FUEL">    <!-- Tank number 0 -->
 			<location unit="IN">

@@ -250,6 +250,7 @@ void SITL_State::_setup_fdm(void)
 	sockaddr.sin_len = sizeof(sockaddr);
 #endif
 	sockaddr.sin_port = htons(_simin_port);
+	fprintf(stderr,"Setting up the TCP socket for SITL connection\n");
 	sockaddr.sin_family = AF_INET;
 
 	_sitl_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -577,8 +578,7 @@ void SITL_State::_simulator_output(void)
 	if (hal.scheduler->millis() < 15000) {
 		control.speed = 0;
 	}
-
-	sendto(_sitl_fd, (void*)&control, sizeof(control), MSG_DONTWAIT, (const sockaddr *)&_rcout_addr, sizeof(_rcout_addr));
+	sendto(_sitl_fd, (void*)&control, sizeof(control), MSG_DONTWAIT , (const sockaddr *)&_rcout_addr, sizeof(_rcout_addr));
 }
 
 
