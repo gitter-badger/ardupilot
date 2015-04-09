@@ -250,7 +250,6 @@ void SITL_State::_setup_fdm(void)
 	sockaddr.sin_len = sizeof(sockaddr);
 #endif
 	sockaddr.sin_port = htons(_simin_port);
-	fprintf(stderr,"Setting up the TCP socket for SITL connection\n");
 	sockaddr.sin_family = AF_INET;
 
 	_sitl_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -397,6 +396,7 @@ void SITL_State::_fdm_input(void)
 		    d.fg_pkt.longitude == 0 ||
 		    d.fg_pkt.altitude <= 0) {
 			// garbage input
+			fprintf(stderr, "Bad Input\n");
 			return;
 		}
 

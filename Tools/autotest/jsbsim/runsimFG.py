@@ -209,8 +209,27 @@ class SITLConnection(object):
 			state.get('psi', units='degrees'),
 			state.get('vcas', units='mps'),
 			0x4c56414f) 
+		#simbuf = struct.pack('<17dI',37.61382276597417, -122.35788393026023, 13.569942677648676, 301.68819888465595, 13.466116415405274, -30.21166986694336, -9.254649060058593, -5.756516651916504, -0.050413392663002016, -11.137235311889649, -1.6254879057107736, 2.8957387399062418, -0.535181446767906, -1.7590227997395773, 12.431236280010225, 301.68819888465595, 21.707256408691407, 1280721231)
 		try:
 			APM.sim_out.send(simbuf)
+			print (state.get('latitude', units='degrees'),
+			state.get('longitude', units='degrees'),
+			state.get('altitude', units='meters'),
+			state.get('psi', units='degrees'),
+			state.get('v_north', units='mps'),
+			state.get('v_east', units='mps'),
+			state.get('v_down', units='mps'),
+			state.get('A_X_pilot', units='mpss'),
+			state.get('A_Y_pilot', units='mpss'),
+			state.get('A_Z_pilot', units='mpss'),
+			state.get('phidot', units='dps'),
+			state.get('thetadot', units='dps'),
+			state.get('psidot', units='dps'),
+			state.get('phi', units='degrees'),
+			state.get('theta', units='degrees'),
+			state.get('psi', units='degrees'),
+			state.get('vcas', units='mps'),
+			0x4c56414f)
 		except:
 			raise
 
