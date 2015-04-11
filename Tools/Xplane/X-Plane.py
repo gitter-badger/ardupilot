@@ -73,10 +73,10 @@ class xParser(object):
 	'lon':(45,2,'deg'),
 	'alt':(45,4,'ft'), #note: above ground level
 	'v_north':(54,4,'m/s'), #9*6
-	'v_east':(54,5,'m/s'),
-	'v_down':(54,6,'m/s'),
-	'A_X_pilot':(9,7,'Gs'), #9*1
-	'A_Y_pilot':(9,6,'Gs'),
+	'v_east':(54,6,'m/s'), #v_Z and v_Y needed to be switched
+	'v_down':(54,5,'m/s'),
+	'A_X_pilot':(9,6,'Gs'), #9*1
+	'A_Y_pilot':(9,7,'Gs'),
 	'A_Z_pilot':(9,5,'Gs'),
 	'phidot':(27,2,'rad/s'), #9*3
 	'thetadot':(27,1,'rad/s'),
