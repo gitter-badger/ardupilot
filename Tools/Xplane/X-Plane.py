@@ -60,10 +60,10 @@ class xParser(object):
 		self.unpacked = 0
 		self.length = 7
 		self.sim_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.sim_in.bind(('0.0.0.0',49005))
+		self.sim_in.bind(('127.0.0.1',49005))
 		self.sim_in.setblocking(0)
 		self.sim_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.sim_out.connect(('10.148.7.135',49000))
+		self.sim_out.connect(('0.0.0.0',49000))
 		self.sim_out.setblocking(0)
 	#The mapping to find the location
 	#mapping works (array ind in packet, offset from ind, 'unit')
@@ -190,7 +190,7 @@ class SITLConnection(object):
 			state.getItem('v_north', 'm/s'),
 			state.getItem('v_east', 'm/s'),
 			state.getItem('v_down', 'm/s'),
-			state.getItem('A_X_pilot', 'm/s2')*-1.0,
+			state.getItem('A_X_pilot', 'm/s2'),
 			state.getItem('A_Y_pilot', 'm/s2'),
 			state.getItem('A_Z_pilot', 'm/s2'),
 			state.getItem('phidot', 'deg/s'),
@@ -201,6 +201,7 @@ class SITLConnection(object):
 			state.getItem('psi', 'deg'),
 			state.getItem('vcas', 'm/s'),
 			0x4c56414f) 
+		print (state.getItem('A_Y_pilot', 'm/s2'), state.getItem('phidot', 'deg/s'))
 		#simbuf = struct.pack('<17dI',37.61382276597417, -122.35788393026023, 13.569942677648676, 301.68819888465595, 13.466116415405274, -30.21166986694336, -9.254649060058593, -5.756516651916504, -0.050413392663002016, -11.137235311889649, -1.6254879057107736, 2.8957387399062418, -0.535181446767906, -1.7590227997395773, 12.431236280010225, 301.68819888465595, 21.707256408691407, 1280721231)
 		try:
 			APM.sim_out.send(simbuf)
@@ -211,7 +212,7 @@ class SITLConnection(object):
 
 
 XParser = xParser()
-APM = SITLConnection(('',5502),('',5501))
+APM = SITLConnection(('127.0.0.1',5502),('127.0.0.1',5501))
 
 def mainLoop():
 	receivedST = False
