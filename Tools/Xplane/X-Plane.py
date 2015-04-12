@@ -72,9 +72,9 @@ class xParser(object):
 	'lat':(45,1,'deg'), #9*5
 	'lon':(45,2,'deg'),
 	'alt':(45,4,'ft'), #note: above ground level
-	'v_north':(54,4,'m/s'), #9*6
-	'v_east':(54,6,'m/s'), #v_Z and v_Y needed to be switched
-	'v_down':(54,5,'m/s'),
+	'v_north':(54,6,'m/s'), #9*6  #this is v_Z in xPlane, with forward as -
+	'v_east':(54,4,'m/s'), #this is v_X in xPlane, with right as -
+	'v_down':(54,5,'m/s'), #this is v_Y in xPlane, with down as -
 	'A_X_pilot':(9,6,'Gs'), #9*1
 	'A_Y_pilot':(9,7,'Gs'),
 	'A_Z_pilot':(9,5,'Gs'),
@@ -186,23 +186,23 @@ class SITLConnection(object):
 			state.getItem('lat', 'deg'),
 			state.getItem('lon', 'deg'),
 			state.getItem('alt', 'm'),
-			state.getItem('psi', 'deg'),
-			state.getItem('v_north', 'm/s'),
-			state.getItem('v_east', 'm/s'),
-			state.getItem('v_down', 'm/s'),
-			state.getItem('A_X_pilot', 'm/s2'),
-			state.getItem('A_Y_pilot', 'm/s2'),
+			0,#state.getItem('psi', 'deg'), #heading
+			0,#state.getItem('v_north', 'm/s')*-1.0, #forward speed
+			0,#state.getItem('v_east', 'm/s'),
+			0,#state.getItem('v_down', 'm/s')*-1.0,
+			state.getItem('A_X_pilot', 'm/s2')*-1.0, #pitch (- is lean forward)
+			0,#state.getItem('A_Y_pilot', 'm/s2'), #roll (- is lean left)
 			state.getItem('A_Z_pilot', 'm/s2'),
-			state.getItem('phidot', 'deg/s'),
-			state.getItem('thetadot', 'deg/s'),
-			state.getItem('psidot', 'deg/s'),
-			state.getItem('phi', 'deg'),
-			state.getItem('theta', 'deg'),
-			state.getItem('psi', 'deg'),
+			0,#state.getItem('phidot', 'deg/s'), #roll
+			state.getItem('thetadot', 'deg/s'), #pitch
+			0, #state.getItem('psidot', 'deg/s'),
+			0,#state.getItem('phi', 'deg'),
+			0,#state.getItem('theta', 'deg'),
+			0,#state.getItem('psi', 'deg'),
 			state.getItem('vcas', 'm/s'),
 			0x4c56414f) 
-		print (state.getItem('A_Y_pilot', 'm/s2'), state.getItem('phidot', 'deg/s'))
 		#simbuf = struct.pack('<17dI',37.61382276597417, -122.35788393026023, 13.569942677648676, 301.68819888465595, 13.466116415405274, -30.21166986694336, -9.254649060058593, -5.756516651916504, -0.050413392663002016, -11.137235311889649, -1.6254879057107736, 2.8957387399062418, -0.535181446767906, -1.7590227997395773, 12.431236280010225, 301.68819888465595, 21.707256408691407, 1280721231)
+		#print (state.getItem('A_X_pilot', 'm/s2'),state.getItem('A_Y_pilot', 'm/s2'))
 		try:
 			APM.sim_out.send(simbuf)
 		except:
@@ -251,7 +251,7 @@ def mainLoop():
 		if XParser.sim_out in wout:
 			if receivedST:
 				data = XParser.buildPacket(APM.controlServos)
-				XParser.sim_out.send(data)
+				#XParser.sim_out.send(data)
 mainLoop()
 
 #(37.61382276597417, -122.35788393026023, 13.569942677648676, 301.68819888465595, 13.466116415405274, -30.21166986694336, -9.254649060058593, -5.756516651916504, -0.050413392663002016, -11.137235311889649, -1.6254879057107736, 2.8957387399062418, -0.535181446767906, -1.7590227997395773, 12.431236280010225, 301.68819888465595, 21.707256408691407, 1280721231)
