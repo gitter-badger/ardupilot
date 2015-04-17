@@ -140,6 +140,7 @@ void AP_Airspeed::init()
     
     analog.init();
     digital.init();
+    //We set this because the pin doesn't seem to be set correctly for the I2c sensor
     _pin.set_and_save(65);
 }
 

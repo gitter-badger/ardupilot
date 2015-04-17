@@ -30,6 +30,7 @@
 .settings/
 .vagrant
 /tmp/*
+/logs/*
 /Tools/ArdupilotMegaPlanner/3DRRadio/bin
 /Tools/ArdupilotMegaPlanner/3DRRadio/obj
 /Tools/ArdupilotMegaPlanner/APMPlannerXplanes/APMPlannerXplanes/Debug
