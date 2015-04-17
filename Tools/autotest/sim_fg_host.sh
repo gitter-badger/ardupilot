@@ -9,10 +9,9 @@ fgfs \
 	--httpd=5400 \
 	--timeofday=noon \
 	--fg-aircraft="$AUTOTESTDIR/aircraft" \
-	--aircraft=easystar\
-	--altitude=6 \
-	--vc=100 \
-
+	--aircraft=Rascal110-JSBSim\
 	--enable-freeze \
     $*
     #--aircraft=Rascal110-JSBSim \
+    #--altitude=6 \
+	#--vc=100 \

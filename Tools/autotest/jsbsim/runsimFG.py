@@ -102,7 +102,7 @@ class servos(object):
 		#elevator
 		self.ch2 = self.scale_channel(servoL[1])
 		#throttle
-		self.ch3 = self.scale_channel(servoL[2], 1000)
+		self.ch3 = self.scale_channel(servoL[2], 0)
 		#rudder
 		self.ch4 = self.scale_channel(servoL[3])
 		self.ch5 = self.scale_channel(servoL[4])
@@ -228,7 +228,7 @@ from optparse import OptionParser
 parser = OptionParser("runsimFG.py [options]")
 parser.add_option("--simin",   help="SITL input (IP:port)",          default="127.0.0.1:5502")
 parser.add_option("--simout",  help="SITL output (IP:port)",         default="127.0.0.1:5501")
-parser.add_option("--fgout",   help="Output to FG (IP:port)",   default="0.0.0.0:5503")
+parser.add_option("--fgout",   help="Output to FG (IP:port)",   default="10.0.2.2:5503")
 parser.add_option("--fgin",   help="Input from FG (IP:port)",   default="0.0.0.0:5504")
 parser.add_option("--options", type='string', help='jsbsim startup options')
 parser.add_option("--elevon", action='store_true', default=False, help='assume elevon input')
@@ -276,9 +276,8 @@ def mainLoop():
 		if FG.fg_out.fileno() in rout:
 			if receivedST:
 				#APM.controlServos.servosPrint()
-				#FG.sendPacket(APM.controlServos)
+				FG.sendPacket(APM.controlServos)
 				#FG.printPacket()
-				continue
 
 
 

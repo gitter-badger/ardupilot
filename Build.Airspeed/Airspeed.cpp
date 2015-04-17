@@ -1,4 +1,4 @@
-// BUILDROOT=/Users/Sam/Documents/CUAir/SITL/ardupilot/Build.Airspeed HAL_BOARD=HAL_BOARD_PX4 HAL_BOARD_SUBTYPE= TOOLCHAIN=NATIVE EXTRAFLAGS=-DGIT_VERSION="5fc02cde" -DNUTTX_GIT_VERSION="475b8c15" -DPX4_GIT_VERSION="c9e12a40"
+// BUILDROOT=/Users/Sam/Documents/CUAir/SITL/ardupilot/Build.Airspeed HAL_BOARD=HAL_BOARD_PX4 HAL_BOARD_SUBTYPE= TOOLCHAIN=NATIVE EXTRAFLAGS=-DGIT_VERSION="70971d32" -DNUTTX_GIT_VERSION="ff60694f" -DPX4_GIT_VERSION="8d11607b"
 #line 1 "/Users/Sam/Documents/CUAir/SITL/ardupilot/libraries/AP_Airspeed/examples/Airspeed/Airspeed.pde"
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
