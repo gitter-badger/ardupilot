@@ -36,7 +36,7 @@
 #define POSHOLD_WIND_COMP_ESTIMATE_SPEED_MAX     10      // wind compensation estimates will only run when velocity is at or below this speed in cm/s
 
 // declare some function to keep compiler happy
-static void poshold_update_pilot_lean_angle(int16_t &lean_angle_filtered, int16_t &lean_angle_raw);
+static void poshold_update_pilot_lean_angle(float &lean_angle_filtered, float &lean_angle_raw);
 static int16_t poshold_mix_controls(float mix_ratio, int16_t first_control, int16_t second_control);
 static void poshold_update_brake_angle_from_velocity(int16_t &brake_angle, float velocity);
 static void poshold_update_wind_comp_estimate();
@@ -62,8 +62,8 @@ static struct {
     uint8_t loiter_reset_I              : 1;    // true the very first time PosHold enters loiter, thereafter we trust the i terms loiter has
 
     // pilot input related variables
-    int16_t pilot_roll;                         // pilot requested roll angle (filtered to slow returns to zero)
-    int16_t pilot_pitch;                        // pilot requested roll angle (filtered to slow returns to zero)
+    float pilot_roll;                         // pilot requested roll angle (filtered to slow returns to zero)
+    float pilot_pitch;                        // pilot requested roll angle (filtered to slow returns to zero)
 
     // braking related variables
     float brake_gain;                           // gain used during conversion of vehicle's velocity to lean angle during braking (calculated from brake_rate)
@@ -144,7 +144,7 @@ static bool poshold_init(bool ignore_checks)
 // should be called at 100hz or more
 static void poshold_run()
 {
-    int16_t target_roll, target_pitch;  // pilot's roll and pitch angle inputs
+    float target_roll, target_pitch;  // pilot's roll and pitch angle inputs
     float target_yaw_rate = 0;          // pilot desired yaw rate in centi-degrees/sec
     int16_t target_climb_rate = 0;      // pilot desired climb rate in centimeters/sec
     float brake_to_loiter_mix;          // mix of brake and loiter controls.  0 = fully brake controls, 1 = fully loiter controls
@@ -156,10 +156,8 @@ static void poshold_run()
     // if not auto armed set throttle to zero and exit immediately
     if(!ap.auto_armed) {
         wp_nav.init_loiter_target();
-        attitude_control.relax_bf_rate_controller();
-        attitude_control.set_yaw_target_to_current_heading();
-        attitude_control.set_throttle_out(0, false);
-        pos_control.set_alt_target_to_current_alt();
+        attitude_control.set_throttle_out_unstabilized(0,true,g.throttle_filt);
+        pos_control.relax_alt_hold_controllers(get_throttle_pre_takeoff(g.rc_3.control_in)-throttle_average);
         return;
     }
 
@@ -191,11 +189,9 @@ static void poshold_run()
     // if landed initialise loiter targets, set throttle to zero and exit
     if (ap.land_complete) {
         wp_nav.init_loiter_target();
-        attitude_control.relax_bf_rate_controller();
-        attitude_control.set_yaw_target_to_current_heading();
         // move throttle to between minimum and non-takeoff-throttle to keep us on the ground
-        attitude_control.set_throttle_out(get_throttle_pre_takeoff(g.rc_3.control_in), false);
-        pos_control.set_alt_target_to_current_alt();
+        attitude_control.set_throttle_out_unstabilized(get_throttle_pre_takeoff(g.rc_3.control_in),true,g.throttle_filt);
+        pos_control.relax_alt_hold_controllers(get_throttle_pre_takeoff(g.rc_3.control_in)-throttle_average);
         return;
     }else{
         // convert pilot input to lean angles
@@ -521,7 +517,7 @@ static void poshold_run()
         // throttle control
         if (sonar_alt_health >= SONAR_ALT_HEALTH_MAX) {
             // if sonar is ok, use surface tracking
-            target_climb_rate = get_throttle_surface_tracking(target_climb_rate, pos_control.get_alt_target(), G_Dt);
+            target_climb_rate = get_surface_tracking_climb_rate(target_climb_rate, pos_control.get_alt_target(), G_Dt);
         }
         // update altitude target and call position controller
         pos_control.set_alt_target_from_climb_rate(target_climb_rate, G_Dt);
@@ -530,7 +526,7 @@ static void poshold_run()
 }
 
 // poshold_update_pilot_lean_angle - update the pilot's filtered lean angle with the latest raw input received
-static void poshold_update_pilot_lean_angle(int16_t &lean_angle_filtered, int16_t &lean_angle_raw)
+static void poshold_update_pilot_lean_angle(float &lean_angle_filtered, float &lean_angle_raw)
 {
     // if raw input is large or reversing the vehicle's lean angle immediately set the fitlered angle to the new raw angle
     if ((lean_angle_filtered > 0 && lean_angle_raw < 0) || (lean_angle_filtered < 0 && lean_angle_raw > 0) || (abs(lean_angle_raw) > POSHOLD_STICK_RELEASE_SMOOTH_ANGLE)) {

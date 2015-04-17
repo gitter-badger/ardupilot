@@ -29,9 +29,8 @@
         setup(); \
         hal.scheduler->system_initialized(); \
         for(;;) { \
-    		loop(); \
-    		AVR_SITL::SITL_State::loop_hook(); \
-	    } \
+		loop(); \
+	} \
         return 0;\
     }\
 }

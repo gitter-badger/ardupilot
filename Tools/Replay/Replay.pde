@@ -35,12 +35,10 @@
 #include <DataFlash.h>
 #include <GCS_MAVLink.h>
 #include <AP_GPS.h>
-#include <AP_GPS_Glitch.h>
 #include <AP_AHRS.h>
 #include <SITL.h>
 #include <AP_Compass.h>
 #include <AP_Baro.h>
-#include <AP_Baro_Glitch.h>
 #include <AP_InertialSensor.h>
 #include <AP_InertialNav.h>
 #include <AP_NavEKF.h>
@@ -71,11 +69,9 @@ static Parameters g;
 static AP_InertialSensor ins;
 static AP_Baro barometer;
 static AP_GPS gps;
-static AP_Compass_HIL compass;
+static Compass compass;
 static AP_AHRS_NavEKF ahrs(ins, barometer, gps);
-static GPS_Glitch gps_glitch(gps);
-static Baro_Glitch baro_glitch(barometer);
-static AP_InertialNav inertial_nav(ahrs, barometer, gps_glitch, baro_glitch);
+static AP_InertialNav_NavEKF inertial_nav(ahrs);
 static AP_Vehicle::FixedWing aparm;
 static AP_Airspeed airspeed(aparm);
 static DataFlash_File dataflash("logs");
@@ -100,6 +96,7 @@ static bool done_baro_init;
 static bool done_home_init;
 static uint16_t update_rate = 50;
 static uint32_t arm_time_ms;
+static bool ahrs_healthy;
 
 static uint8_t num_user_parameters;
 static struct {
@@ -219,7 +216,6 @@ void setup()
     barometer.setHIL(0);
     barometer.update();
     compass.init();
-    inertial_nav.init();
     ins.set_hil_mode();
 
     switch (update_rate) {
@@ -270,7 +266,6 @@ void setup()
                      hal.scheduler->millis()*0.001f);
             ahrs.set_home(loc);
             compass.set_initial_location(loc.lat, loc.lng);
-            inertial_nav.setup_home_position();
             done_home_init = true;
         }
     }
@@ -321,6 +316,10 @@ static void read_sensors(uint8_t type)
             dataflash.Log_Write_AHRS2(ahrs);
             ins.set_gyro(0, ins.get_gyro());
             ins.set_accel(0, ins.get_accel());
+            if (ahrs.healthy() != ahrs_healthy) {
+                ahrs_healthy = ahrs.healthy();
+                printf("AHRS health: %u\n", (unsigned)ahrs_healthy);
+            }
         }
     } else if ((type == LOG_PLANE_COMPASS_MSG && LogReader.vehicle == LogReader::VEHICLE_PLANE) ||
                (type == LOG_COPTER_COMPASS_MSG && LogReader.vehicle == LogReader::VEHICLE_COPTER) ||

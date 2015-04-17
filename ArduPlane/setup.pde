@@ -6,7 +6,6 @@
 static int8_t   setup_radio                             (uint8_t argc, const Menu::arg *argv);
 static int8_t   setup_show                              (uint8_t argc, const Menu::arg *argv);
 static int8_t   setup_factory                   (uint8_t argc, const Menu::arg *argv);
-static int8_t   setup_level                             (uint8_t argc, const Menu::arg *argv);
 static int8_t   setup_accel_scale                       (uint8_t argc, const Menu::arg *argv);
 static int8_t   setup_set                               (uint8_t argc, const Menu::arg *argv);
 static int8_t   setup_erase                             (uint8_t argc, const Menu::arg *argv);
@@ -19,7 +18,6 @@ static const struct Menu::command setup_menu_commands[] PROGMEM = {
     // =======          ===============
     {"reset",                       setup_factory},
     {"radio",                       setup_radio},
-    {"level",                       setup_level},
     {"accel",                       setup_accel_scale},
     {"compass",                     setup_compass},
     {"show",                        setup_show},
@@ -265,13 +263,6 @@ setup_erase(uint8_t argc, const Menu::arg *argv)
     return 0;
 }
 
-static int8_t
-setup_level(uint8_t argc, const Menu::arg *argv)
-{
-    startup_INS_ground(true);
-    return 0;
-}
-
 /*
   handle full accelerometer calibration via user dialog
  */
@@ -351,35 +342,7 @@ static void report_ins()
 
 static void report_compass()
 {
-    //print_blanks(2);
-    cliSerial->printf_P(PSTR("Compass: "));
-
-    switch (compass.product_id) {
-    case AP_COMPASS_TYPE_HMC5883L:
-        cliSerial->println_P(PSTR("HMC5883L"));
-        break;
-    case AP_COMPASS_TYPE_HMC5843:
-        cliSerial->println_P(PSTR("HMC5843"));
-        break;
-    case AP_COMPASS_TYPE_HIL:
-        cliSerial->println_P(PSTR("HIL"));
-        break;
-    case AP_COMPASS_TYPE_PX4:
-        cliSerial->println_P(PSTR("PX4"));
-        break;
-    case AP_COMPASS_TYPE_VRBRAIN:
-        cliSerial->println_P(PSTR("VRBRAIN"));
-        break;
-    case AP_COMPASS_TYPE_AK8963_MPU9250:
-        cliSerial->println_P(PSTR("AK8963_MPU9250"));
-        break;
-    default:
-        cliSerial->println_P(PSTR("(unknown)"));
-        break;
-    }
-
-    print_divider();
-
+    cliSerial->print_P(PSTR("Compass: "));
     print_enabled(g.compass_enabled);
 
     Vector3f offsets = compass.get_offsets();

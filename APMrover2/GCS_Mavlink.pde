@@ -177,9 +177,15 @@ static NOINLINE void send_extended_status1(mavlink_channel_t chan)
     int16_t battery_current = -1;
     int8_t battery_remaining = -1;
 
-    if (battery.has_current()) {
+    if (battery.has_current() && battery.healthy()) {
         battery_remaining = battery.capacity_remaining_pct();
         battery_current = battery.current_amps() * 100;
+    }
+
+    if (AP_Notify::flags.initialising) {
+        // while initialising the gyros and accels are not enabled
+        control_sensors_enabled &= ~(MAV_SYS_STATUS_SENSOR_3D_GYRO | MAV_SYS_STATUS_SENSOR_3D_ACCEL);
+        control_sensors_health &= ~(MAV_SYS_STATUS_SENSOR_3D_GYRO | MAV_SYS_STATUS_SENSOR_3D_ACCEL);
     }
 
     mavlink_msg_sys_status_send(
@@ -427,6 +433,11 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
         send_location(chan);
         break;
 
+    case MSG_LOCAL_POSITION:
+        CHECK_PAYLOAD_SIZE(LOCAL_POSITION_NED);
+        send_local_position(ahrs);
+        break;
+
     case MSG_NAV_CONTROLLER_OUTPUT:
         if (control_mode != MANUAL) {
             CHECK_PAYLOAD_SIZE(NAV_CONTROLLER_OUTPUT);
@@ -537,6 +548,13 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
 #if CAMERA == ENABLED
         CHECK_PAYLOAD_SIZE(CAMERA_FEEDBACK);
         camera.send_feedback(chan, gps, ahrs, current_loc);
+#endif
+        break;
+
+    case MSG_EKF_STATUS_REPORT:
+#if AP_AHRS_NAVEKF_AVAILABLE
+        CHECK_PAYLOAD_SIZE(EKF_STATUS_REPORT);
+        ahrs.get_NavEKF().send_status_report(chan);
 #endif
         break;
 
@@ -730,6 +748,7 @@ GCS_MAVLINK::data_stream_send(void)
     if (stream_trigger(STREAM_POSITION)) {
         // sent with GPS read
         send_message(MSG_LOCATION);
+        send_message(MSG_LOCAL_POSITION);
     }
 
     if (gcs_out_of_time) return;
@@ -767,6 +786,7 @@ GCS_MAVLINK::data_stream_send(void)
         send_message(MSG_SYSTEM_TIME);
         send_message(MSG_BATTERY2);
         send_message(MSG_MOUNT_STATUS);
+        send_message(MSG_EKF_STATUS_REPORT);
     }
 }
 
@@ -841,15 +861,37 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
                 break;
 
             case MAV_CMD_PREFLIGHT_CALIBRATION:
-                if ((packet.param1 == 1 ||
-                     packet.param2 == 1) &&
-                    packet.param3 == 0) {
-                    startup_INS_ground(true);
+                if (packet.param1 == 1) {
+                    ins.init_gyro();
+                    if (ins.gyro_calibrated_ok_all()) {
+                        ahrs.reset_gyro_drift();
+                        result = MAV_RESULT_ACCEPTED;
+                    } else {
+                        result = MAV_RESULT_FAILED;
+                    }
+                } else if (packet.param3 == 1) {
+                    init_barometer();
                     result = MAV_RESULT_ACCEPTED;
                 } else if (packet.param4 == 1) {
                     trim_radio();
                     result = MAV_RESULT_ACCEPTED;
-                } else {
+                } else if (packet.param5 == 1) {
+                    float trim_roll, trim_pitch;
+                    AP_InertialSensor_UserInteract_MAVLink interact(this);
+                    if (g.skip_gyro_cal) {
+                        // start with gyro calibration, otherwise if the user
+                        // has SKIP_GYRO_CAL=1 they don't get to do it
+                        ins.init_gyro();
+                    }
+                    if(ins.calibrate_accel(&interact, trim_roll, trim_pitch)) {
+                        // reset ahrs's trim to suggested values from calibration routine
+                        ahrs.set_trim(Vector3f(trim_roll, trim_pitch, 0));
+                        result = MAV_RESULT_ACCEPTED;
+                    } else {
+                        result = MAV_RESULT_FAILED;
+                    }
+                }
+                else {
                     send_text_P(SEVERITY_LOW, PSTR("Unsupported preflight calibration"));
                 }
                 break;
@@ -1232,7 +1274,7 @@ static void gcs_update(void)
     for (uint8_t i=0; i<num_gcs; i++) {
         if (gcs[i].initialised) {
 #if CLI_ENABLED == ENABLED
-            gcs[i].update(run_cli);
+            gcs[i].update(g.cli_enabled==1?run_cli:NULL);
 #else
             gcs[i].update(NULL);
 #endif

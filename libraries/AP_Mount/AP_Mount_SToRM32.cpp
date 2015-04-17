@@ -17,7 +17,7 @@ AP_Mount_SToRM32::AP_Mount_SToRM32(AP_Mount &frontend, AP_Mount::mount_state &st
 void AP_Mount_SToRM32::init(const AP_SerialManager& serial_manager)
 {
     // get_mavlink_channel for MAVLink2
-    if (serial_manager.get_mavlink_channel(AP_SerialManager::SerialProtocol_MAVLink2, _chan)) {
+    if (serial_manager.get_mavlink_channel(AP_SerialManager::SerialProtocol_MAVLink, 1, _chan)) {
         _initialised = true;
         set_mode((enum MAV_MOUNT_MODE)_state._default_mode.get());
     }
@@ -120,6 +120,10 @@ void AP_Mount_SToRM32::send_do_mount_control(float pitch_deg, float roll_deg, fl
     if (!_initialised) {
         return;
     }
+
+    // reverse pitch and yaw control
+    pitch_deg = -pitch_deg;
+    yaw_deg = -yaw_deg;
 
     // send command_long command containing a do_mount_control command
     mavlink_msg_command_long_send(_chan,

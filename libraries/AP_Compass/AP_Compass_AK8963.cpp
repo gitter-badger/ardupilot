@@ -26,7 +26,6 @@
 #include <AP_HAL.h>
 #include "AP_Compass_AK8963.h"
 
-
 #define READ_FLAG                   0x80
 #define MPUREG_I2C_SLV0_ADDR        0x25
 #define MPUREG_I2C_SLV0_REG         0x26
@@ -106,13 +105,6 @@ extern const AP_HAL::HAL& hal;
 
 AK8963_MPU9250_SPI_Backend::AK8963_MPU9250_SPI_Backend()
 {
-    _spi = hal.spi->device(AP_HAL::SPIDevice_MPU9250);
-
-    if (_spi == NULL) {
-        hal.scheduler->panic(PSTR("Cannot get SPIDevice_MPU9250"));
-    }
-
-    _spi_sem = _spi->get_semaphore();
 }
 
 bool AK8963_MPU9250_SPI_Backend::sem_take_blocking()
@@ -149,6 +141,19 @@ bool AK8963_MPU9250_SPI_Backend::sem_take_nonblocking()
     return got;
 }
 
+bool AK8963_MPU9250_SPI_Backend::init()
+{
+    _spi = hal.spi->device(AP_HAL::SPIDevice_MPU9250);
+
+    if (_spi == NULL) {
+        hal.console->println_P(PSTR("Cannot get SPIDevice_MPU9250"));
+        return false;
+    }
+
+    _spi_sem = _spi->get_semaphore();
+    return true;
+}
+
 void AK8963_MPU9250_SPI_Backend::read(uint8_t address, uint8_t *buf, uint32_t count)
 {
     ASSERT(count < 10);
@@ -173,9 +178,23 @@ void AK8963_MPU9250_SPI_Backend::write(uint8_t address, const uint8_t *buf, uint
     _spi->transaction(tx, NULL, count + 1);
 }
 
-AP_Compass_AK8963_MPU9250::AP_Compass_AK8963_MPU9250()
+AP_Compass_AK8963_MPU9250::AP_Compass_AK8963_MPU9250(Compass &compass):
+    AP_Compass_AK8963(compass)
 {
-    product_id = AP_COMPASS_TYPE_AK8963_MPU9250;
+}
+
+// detect the sensor
+AP_Compass_Backend *AP_Compass_AK8963_MPU9250::detect(Compass &compass)
+{
+    AP_Compass_AK8963_MPU9250 *sensor = new AP_Compass_AK8963_MPU9250(compass);
+    if (sensor == NULL) {
+        return NULL;
+    }
+    if (!sensor->init()) {
+        delete sensor;
+        return NULL;
+    }
+    return sensor;
 }
 
 void AP_Compass_AK8963_MPU9250::_dump_registers()
@@ -213,6 +232,11 @@ bool AP_Compass_AK8963_MPU9250::init()
     if (_backend == NULL) {
         hal.scheduler->panic(PSTR("_backend coudln't be allocated"));
     }
+    if (!_backend->init()) {
+        delete _backend;
+        _backend = NULL;
+        return false;
+    }
     return AP_Compass_AK8963::init();
 #else
 #error Wrong backend for AK8963 is selected
@@ -244,7 +268,7 @@ uint8_t AP_Compass_AK8963_MPU9250::_read_id()
     return 1;
 }
 
-bool AP_Compass_AK8963_MPU9250::_read_raw()
+bool AP_Compass_AK8963_MPU9250::read_raw()
 {
     uint8_t rx[14] = {0};
 
@@ -271,11 +295,14 @@ bool AP_Compass_AK8963_MPU9250::_read_raw()
 
 }
 
-AP_Compass_AK8963::AP_Compass_AK8963() : 
-    Compass(),
-    _backend(NULL)
+AP_Compass_AK8963::AP_Compass_AK8963(Compass &compass) : 
+    AP_Compass_Backend(compass),    
+    _backend(NULL),
+    _initialised(false),
+    _state(CONVERSION),
+    _last_update_timestamp(0),
+    _last_accum_time(0)
 {
-    _healthy[0] = true;
     _initialised = false;
     _mag_x_accum =_mag_y_accum = _mag_z_accum = 0;
     _mag_x =_mag_y = _mag_z = 0;
@@ -306,7 +333,7 @@ bool AP_Compass_AK8963::_self_test()
 
     _start_conversion();
     hal.scheduler->delay(20);
-    _read_raw();
+    read_raw();
 
     float hx = _mag_x;
     float hy = _mag_y;
@@ -353,12 +380,6 @@ bool AP_Compass_AK8963::_self_test()
 
 bool AP_Compass_AK8963::init()
 {
-    _healthy[0] = true;
-
-    _field[0].x = 0.0f;
-    _field[0].y = 0.0f;
-    _field[0].z = 0.0f;
-
     hal.scheduler->suspend_timer_procs();
     if (!_backend->sem_take_blocking()) {
         error("_spi_sem->take failed\n");
@@ -412,6 +433,9 @@ bool AP_Compass_AK8963::init()
     _register_write(AK8963_CNTL1, AK8963_CONTINUOUS_MODE2 | _magnetometer_adc_resolution);
 
     _backend->sem_give();
+
+    // register the compass instance in the frontend
+    _compass_instance = register_compass();    
 
     hal.scheduler->resume_timer_procs();
     hal.scheduler->register_timer_process( AP_HAL_MEMBERPROC(&AP_Compass_AK8963::_update));
@@ -473,50 +497,27 @@ bool AP_Compass_AK8963::_calibrate()
     return true;
 }
 
-bool AP_Compass_AK8963::read()
+void AP_Compass_AK8963::read()
 {
     if (!_initialised) {
-        return false;
+        return;
     }
 
     if (_accum_count == 0) {
         /* We're not ready to publish*/
-        return true;
+        return;
     }
 
     /* Update */
-    _field[0].x = _mag_x_accum * magnetometer_ASA[0] / _accum_count;
-    _field[0].y = _mag_y_accum * magnetometer_ASA[1] / _accum_count;
-    _field[0].z = _mag_z_accum * magnetometer_ASA[2] / _accum_count;
+    Vector3f field(_mag_x_accum * magnetometer_ASA[0],
+                   _mag_y_accum * magnetometer_ASA[1],
+                   _mag_z_accum * magnetometer_ASA[2]);
 
+    field /= _accum_count;
     _mag_x_accum = _mag_y_accum = _mag_z_accum = 0;
     _accum_count = 0;
 
-    // apply default board orientation for this compass type. This is
-    // a noop on most boards
-    _field[0].rotate(MAG_BOARD_ORIENTATION);
-
-    // add user selectable orientation
-    _field[0].rotate((enum Rotation)_orientation[0].get());
-
-    if (!_external[0]) {
-        // and add in AHRS_ORIENTATION setting if not an external compass
-        _field[0].rotate(_board_orientation);
-    }
-
-    apply_corrections(_field[0],0);
-
-#if 0
-    float x = _field[0].x;
-    float y = _field[0].y;
-    float z = _field[0].z;
-
-    error("%f %f %f\n", x, y, z);
-#endif
-
-    last_update = hal.scheduler->micros(); // record time of update
-
-    return true;
+    publish_field(field, _compass_instance);
 }
 
 void AP_Compass_AK8963::_start_conversion()
@@ -538,8 +539,8 @@ void AP_Compass_AK8963::_collect_samples()
         return;
     }
 
-    if (!_read_raw()) {
-        error("_read_raw failed\n");
+    if (!read_raw()) {
+        error("read_raw failed\n");
     } else {
         _mag_x_accum += _mag_x;
         _mag_y_accum += _mag_y;

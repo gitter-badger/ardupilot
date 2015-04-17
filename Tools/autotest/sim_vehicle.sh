@@ -7,6 +7,7 @@ VEHICLE=""
 BUILD_TARGET="sitl"
 FRAME=""
 NUM_PROCS=1
+SPEEDUP="1"
 
 # check the instance number to allow for multiple copies of the sim running at once
 INSTANCE=0
@@ -48,6 +49,7 @@ Options:
     -j NUM_PROC      number of processors to use during build (default 1)
     -H               start HIL
     -e               use external simulator
+    -S SPEEDUP       set simulation speedup (1 for wall clock time)
 
 mavproxy_options:
     --map            start with a map
@@ -64,7 +66,7 @@ EOF
 
 
 # parse options. Thanks to http://wiki.bash-hackers.org/howto/getopts_tutorial
-while getopts ":I:VgGcj:TA:t:L:v:hwf:RNHeM" opt; do
+while getopts ":I:VgGcj:TA:t:L:v:hwf:RNHeMS:" opt; do
   case $opt in
     v)
       VEHICLE=$OPTARG
@@ -106,6 +108,9 @@ while getopts ":I:VgGcj:TA:t:L:v:hwf:RNHeM" opt; do
       ;;
     f)
       FRAME="$OPTARG"
+      ;;
+    S)
+      SPEEDUP="$OPTARG"
       ;;
     t)
       TRACKER_LOCATION="$OPTARG"
@@ -150,7 +155,9 @@ kill_tasks()
     }
 }
 
+if [ $START_HIL == 0 ]; then
 kill_tasks
+fi
 
 trap kill_tasks SIGINT
 
@@ -169,31 +176,47 @@ set -x
 EXTRA_PARM=""
 EXTRA_SIM=""
 
+[ "$SPEEDUP" != "1" ] && {
+    EXTRA_SIM="$EXTRA_SIM --speedup=$SPEEDUP"
+}
+
 # modify build target based on copter frame type
 case $FRAME in
     +|quad)
 	BUILD_TARGET="sitl"
-        EXTRA_SIM="--frame=quad"
+        EXTRA_SIM="$EXTRA_SIM --frame=quad"
 	;;
     X)
 	BUILD_TARGET="sitl"
         EXTRA_PARM="param set FRAME 1;"
-        EXTRA_SIM="--frame=X"
+        EXTRA_SIM="$EXTRA_SIM --frame=X"
 	;;
     octa)
 	BUILD_TARGET="sitl-octa"
-        EXTRA_SIM="--frame=octa"
+        EXTRA_SIM="$EXTRA_SIM --frame=octa"
+	;;
+    octa-quad)
+	BUILD_TARGET="sitl-octa-quad"
+        EXTRA_SIM="$EXTRA_SIM --frame=octa-quad"
+	;;
+    heli)
+	BUILD_TARGET="sitl-heli"
+        EXTRA_SIM="$EXTRA_SIM --frame=heli"
+	;;
+    IrisRos)
+	BUILD_TARGET="sitl"
+        EXTRA_SIM="$EXTRA_SIM --frame=IrisRos"
 	;;
     elevon*)
         EXTRA_PARM="param set ELEVON_OUTPUT 4;"
-        EXTRA_SIM="--elevon"
+        EXTRA_SIM="$EXTRA_SIM --elevon"
 	;;
     vtail)
         EXTRA_PARM="param set VTAIL_OUTPUT 4;"
-        EXTRA_SIM="--vtail"
+        EXTRA_SIM="$EXTRA_SIM --vtail"
 	;;
     skid)
-        EXTRA_SIM="--skid-steering"
+        EXTRA_SIM="$EXTRA_SIM --skid-steering"
 	;;
     obc)
         BUILD_TARGET="sitl-obc"
@@ -209,7 +232,7 @@ esac
 
 if [ $USE_MAVLINK_GIMBAL == 1 ]; then
     echo "Using MAVLink gimbal"
-    EXTRA_SIM="--gimbal"
+    EXTRA_SIM="$EXTRA_SIM --gimbal"
 fi
 
 autotest=$(dirname $(readlink -e $0))
@@ -308,7 +331,7 @@ elif [ $USE_GDB == 1 ]; then
     echo "Using gdb"
     tfile=$(mktemp)
     [ $USE_GDB_STOPPED == 0 ] && {
-        echo r > $tfile
+        echo r >> $tfile
     }
     $autotest/run_in_terminal_window.sh "ardupilot (gdb)" gdb -x $tfile --args $cmd || exit 1
 else
@@ -327,7 +350,13 @@ if [ $EXTERNAL_SIM == 0 ]; then
     }
     sleep 2
 else
-    echo "Using external simulator"
+    echo "Using external ROS simulator"
+    RUNSIM="$autotest/ROS/runsim.py --simin=$SIMIN_PORT --simout=$SIMOUT_PORT --fgout=$FG_PORT $EXTRA_SIM"
+    $autotest/run_in_terminal_window.sh "ROS Simulator" $RUNSIM || {
+        echo "Failed to start simulator: $RUNSIM"
+        exit 1
+    }
+    sleep 2
 fi
 
 # mavproxy.py --master tcp:127.0.0.1:5760 --sitl 127.0.0.1:5501 --out 127.0.0.1:14550 --out 127.0.0.1:14551 
@@ -356,3 +385,4 @@ echo "Hit return to continue"
 read not_matter
 # mavproxy.py $options --cmd="$extra_cmd" $*
 kill_tasks
+fi

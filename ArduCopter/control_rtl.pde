@@ -134,9 +134,7 @@ static void rtl_climb_return_run()
     // if not auto armed set throttle to zero and exit immediately
     if(!ap.auto_armed) {
         // reset attitude control targets
-        attitude_control.relax_bf_rate_controller();
-        attitude_control.set_yaw_target_to_current_heading();
-        attitude_control.set_throttle_out(0, false);
+        attitude_control.set_throttle_out_unstabilized(0,true,g.throttle_filt);
         // To-Do: re-initialise wpnav targets
         return;
     }
@@ -192,9 +190,7 @@ static void rtl_loiterathome_run()
     // if not auto armed set throttle to zero and exit immediately
     if(!ap.auto_armed) {
         // reset attitude control targets
-        attitude_control.relax_bf_rate_controller();
-        attitude_control.set_yaw_target_to_current_heading();
-        attitude_control.set_throttle_out(0, false);
+        attitude_control.set_throttle_out_unstabilized(0,true,g.throttle_filt);
         // To-Do: re-initialise wpnav targets
         return;
     }
@@ -263,9 +259,7 @@ static void rtl_descent_run()
 
     // if not auto armed set throttle to zero and exit immediately
     if(!ap.auto_armed) {
-        attitude_control.relax_bf_rate_controller();
-        attitude_control.set_yaw_target_to_current_heading();
-        attitude_control.set_throttle_out(0, false);
+        attitude_control.set_throttle_out_unstabilized(0,true,g.throttle_filt);
         // set target to current position
         wp_nav.init_loiter_target();
         return;
@@ -300,7 +294,7 @@ static void rtl_descent_run()
     attitude_control.angle_ef_roll_pitch_rate_ef_yaw(wp_nav.get_roll(), wp_nav.get_pitch(), target_yaw_rate);
 
     // check if we've reached within 20cm of final altitude
-    rtl_state_complete = fabs(g.rtl_alt_final - inertial_nav.get_altitude()) < 20.0f;
+    rtl_state_complete = fabs(pv_alt_above_origin(g.rtl_alt_final) - inertial_nav.get_altitude()) < 20.0f;
 }
 
 // rtl_loiterathome_start - initialise controllers to loiter over home
@@ -327,9 +321,7 @@ static void rtl_land_run()
     float target_yaw_rate = 0;
     // if not auto armed set throttle to zero and exit immediately
     if(!ap.auto_armed || ap.land_complete) {
-        attitude_control.relax_bf_rate_controller();
-        attitude_control.set_yaw_target_to_current_heading();
-        attitude_control.set_throttle_out(0, false);
+        attitude_control.set_throttle_out_unstabilized(0,true,g.throttle_filt);
         // set target to current position
         wp_nav.init_loiter_target();
 
@@ -401,7 +393,7 @@ static float get_RTL_alt()
 #if AC_FENCE == ENABLED
     // ensure not above fence altitude if alt fence is enabled
     if ((fence.get_enabled_fences() & AC_FENCE_TYPE_ALT_MAX) != 0) {
-        rtl_alt = min(rtl_alt, fence.get_safe_alt()*100.0f);
+        rtl_alt = min(rtl_alt, pv_alt_above_origin(fence.get_safe_alt()*100.0f));
     }
 #endif
 

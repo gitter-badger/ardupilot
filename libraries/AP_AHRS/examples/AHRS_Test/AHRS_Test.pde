@@ -50,7 +50,7 @@ AP_InertialSensor ins;
 AP_ADC_ADS7844 apm1_adc;
 #endif
 
-AP_Compass_HMC5843 compass;
+Compass compass;
 
 AP_GPS gps;
 AP_Baro baro;
@@ -75,8 +75,6 @@ void setup(void)
 
     ins.init(AP_InertialSensor::COLD_START, 
 			 AP_InertialSensor::RATE_100HZ);
-    ins.init_accel();
-
     ahrs.init();
     serial_manager.init();
 

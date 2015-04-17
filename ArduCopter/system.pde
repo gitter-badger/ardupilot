@@ -89,14 +89,6 @@ static void init_ardupilot()
                          "\n\nFree RAM: %u\n"),
                         hal.util->available_memory());
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
-    /*
-      run the timer a bit slower on APM2 to reduce the interrupt load
-      on the CPU
-     */
-    hal.scheduler->set_timer_speed(500);
-#endif
-
     //
     // Report firmware version code expect on console (check of actual EEPROM format version is done in load_parameters function)
     //
@@ -137,18 +129,14 @@ static void init_ardupilot()
     check_usb_mux();
 
     // init the GCS connected to the console
-    gcs[0].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_Console);
+    gcs[0].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_Console, 0);
 
-#if CONFIG_HAL_BOARD != HAL_BOARD_APM2
-    // we have a 2nd serial port for telemetry on all boards except
-    // APM2. We actually do have one on APM2 but it isn't necessary as
-    // a MUX is used
-    gcs[1].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink1);
-#endif
+    // init telemetry port
+    gcs[1].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, 0);
 
 #if MAVLINK_COMM_NUM_BUFFERS > 2
     // setup serial port for telem2
-    gcs[2].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink2);
+    gcs[2].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, 1);
 #endif
 
 #if FRSKY_TELEM_ENABLED == ENABLED
@@ -185,11 +173,6 @@ static void init_ardupilot()
      */
     hal.scheduler->register_timer_failsafe(failsafe_check, 1000);
 
- #if CONFIG_ADC == ENABLED
-    // begin filtering the ADC Gyros
-    apm1_adc.Init();           // APM ADC library initialization
- #endif // CONFIG_ADC
-
     // Do GPS init
     gps.init(&DataFlash, serial_manager);
 
@@ -208,24 +191,25 @@ static void init_ardupilot()
     // init the optical flow sensor
     init_optflow();
 
-    // initialise inertial nav
-    inertial_nav.init();
-
+#if MOUNT == ENABLED
     // initialise camera mount
     camera_mount.init(serial_manager);
+#endif
 
 #ifdef USERHOOK_INIT
     USERHOOK_INIT
 #endif
 
 #if CLI_ENABLED == ENABLED
-    const prog_char_t *msg = PSTR("\nPress ENTER 3 times to start interactive setup\n");
-    cliSerial->println_P(msg);
-    if (gcs[1].initialised && (gcs[1].get_uart() != NULL)) {
-        gcs[1].get_uart()->println_P(msg);
-    }
-    if (num_gcs > 2 && gcs[2].initialised && (gcs[2].get_uart() != NULL)) {
-        gcs[2].get_uart()->println_P(msg);
+    if (g.cli_enabled) {
+        const prog_char_t *msg = PSTR("\nPress ENTER 3 times to start interactive setup\n");
+        cliSerial->println_P(msg);
+        if (gcs[1].initialised && (gcs[1].get_uart() != NULL)) {
+            gcs[1].get_uart()->println_P(msg);
+        }
+        if (num_gcs > 2 && gcs[2].initialised && (gcs[2].get_uart() != NULL)) {
+            gcs[2].get_uart()->println_P(msg);
+        }
     }
 #endif // CLI_ENABLED
 
@@ -274,6 +258,9 @@ static void init_ardupilot()
     // ready to fly
     serial_manager.set_blocking_writes_all(false);
 
+    // enable CPU failsafe
+    failsafe_enable();
+
     cliSerial->print_P(PSTR("\nReady to FLY "));
 
     // flag that initialisation has completed
@@ -316,25 +303,25 @@ static void startup_ground(bool force_gyro_cal)
 // position_ok - returns true if the horizontal absolute position is ok and home position is set
 static bool position_ok()
 {
-    if (ahrs.have_inertial_nav()) {
-        // return false if ekf failsafe has triggered
-        if (failsafe.ekf) {
-            return false;
-        }
-
-        // with EKF use filter status and ekf check
-        nav_filter_status filt_status = inertial_nav.get_filter_status();
-
-        // if disarmed we accept a predicted horizontal position
-        if (!motors.armed()) {
-            return ((filt_status.flags.horiz_pos_abs || filt_status.flags.pred_horiz_pos_abs));
-        } else {
-            // once armed we require a good absolute position and EKF must not be in const_pos_mode
-            return (filt_status.flags.horiz_pos_abs && !filt_status.flags.const_pos_mode);
-        }
-    } else {
-        // do not allow navigation with older inertial nav
+    if (!ahrs.have_inertial_nav()) {
+        // do not allow navigation with dcm position
         return false;
+    }
+
+    // return false if ekf failsafe has triggered
+    if (failsafe.ekf) {
+        return false;
+    }
+
+    // with EKF use filter status and ekf check
+    nav_filter_status filt_status = inertial_nav.get_filter_status();
+
+    // if disarmed we accept a predicted horizontal position
+    if (!motors.armed()) {
+        return ((filt_status.flags.horiz_pos_abs || filt_status.flags.pred_horiz_pos_abs));
+    } else {
+        // once armed we require a good absolute position and EKF must not be in const_pos_mode
+        return (filt_status.flags.horiz_pos_abs && !filt_status.flags.const_pos_mode);
     }
 }
 
@@ -395,18 +382,6 @@ static void check_usb_mux(void)
 
     // the user has switched to/from the telemetry port
     ap.usb_connected = usb_check;
-
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM2
-    // the APM2 has a MUX setup where the first serial port switches
-    // between USB and a TTL serial connection. When on USB we use
-    // SERIAL0_BAUD, but when connected as a TTL serial port we run it
-    // at SERIAL1_BAUD.
-    if (ap.usb_connected) {
-        serial_manager.set_console_baud(AP_SerialManager::SerialProtocol_Console);
-    } else {
-        serial_manager.set_console_baud(AP_SerialManager::SerialProtocol_MAVLink1);
-    }
-#endif
 }
 
 // frsky_telemetry_send - sends telemetry data using frsky telemetry

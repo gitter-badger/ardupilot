@@ -6,7 +6,7 @@
  *      Adapted and updated for AC2 in 2011 by Jason Short
  *
  *      Controls:
- *          CH7_OPT or CH8_OPT parameter must be set to "Flip" (AUX_SWITCH_FLIP) which is "2"
+ *          CH7_OPT - CH12_OPT parameter must be set to "Flip" (AUXSW_FLIP) which is "2"
  *          Pilot switches to Stabilize, Acro or AltHold flight mode and puts ch7/ch8 switch to ON position
  *          Vehicle will Roll right by default but if roll or pitch stick is held slightly left, forward or back it will flip in that direction
  *          Vehicle should complete the roll within 2.5sec and will then return to the original flight mode it was in before flip was triggered
@@ -218,5 +218,9 @@ static void flip_run()
     }
 
     // output pilot's throttle without angle boost
-    attitude_control.set_throttle_out(throttle_out, false);
+    if (throttle_out == 0.0f) {
+        attitude_control.set_throttle_out_unstabilized(0,false,g.throttle_filt);
+    } else {
+        attitude_control.set_throttle_out(throttle_out, false, g.throttle_filt);
+    }
 }

@@ -183,6 +183,11 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
         send_location(chan);
         break;
 
+    case MSG_LOCAL_POSITION:
+        CHECK_PAYLOAD_SIZE(LOCAL_POSITION_NED);
+        send_local_position(ahrs);
+        break;
+
     case MSG_NAV_CONTROLLER_OUTPUT:
         CHECK_PAYLOAD_SIZE(NAV_CONTROLLER_OUTPUT);
         send_nav_controller_output(chan);
@@ -265,6 +270,7 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
     case MSG_MOUNT_STATUS:
     case MSG_OPTICAL_FLOW:
     case MSG_GIMBAL_REPORT:
+    case MSG_EKF_STATUS_REPORT:
         break; // just here to prevent a warning
     }
     return true;
@@ -421,6 +427,7 @@ GCS_MAVLINK::data_stream_send(void)
 
     if (stream_trigger(STREAM_POSITION)) {
         send_message(MSG_LOCATION);
+        send_message(MSG_LOCAL_POSITION);
     }
 
     if (stream_trigger(STREAM_RAW_CONTROLLER)) {
@@ -519,10 +526,16 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
             
             case MAV_CMD_PREFLIGHT_CALIBRATION:
             {
-                if (packet.param1 == 1 ||
-                    packet.param2 == 1) {
-                    calibrate_ins();
-                } else if (packet.param3 == 1) {
+                if (packet.param1 == 1) {
+                    ins.init_gyro();
+                    if (ins.gyro_calibrated_ok_all()) {
+                        ahrs.reset_gyro_drift();
+                        result = MAV_RESULT_ACCEPTED;
+                    } else {
+                        result = MAV_RESULT_FAILED;
+                    }
+                } 
+                if (packet.param3 == 1) {
                     init_barometer();
                     // zero the altitude difference on next baro update
                     nav_status.need_altitude_calibration = true;
@@ -531,9 +544,9 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
                     // Cant trim radio
                 }
 #if !defined( __AVR_ATmega1280__ )
-                if (packet.param5 == 1) {
+                else if (packet.param5 == 1) {
                     float trim_roll, trim_pitch;
-                    AP_InertialSensor_UserInteract_MAVLink interact(chan);
+                    AP_InertialSensor_UserInteract_MAVLink interact(this);
                     if(ins.calibrate_accel(&interact, trim_roll, trim_pitch)) {
                         // reset ahrs's trim to suggested values from calibration routine
                         ahrs.set_trim(Vector3f(trim_roll, trim_pitch, 0));

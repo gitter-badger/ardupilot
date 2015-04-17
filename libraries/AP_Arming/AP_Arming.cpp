@@ -25,7 +25,7 @@ const AP_Param::GroupInfo AP_Arming::var_info[] PROGMEM = {
     // @Description: Arming disabled until some requirements are met. If 0, there are no requirements (arm immediately).  If 1, require rudder stick or GCS arming before arming motors and send THR_MIN PWM to throttle channel when disarmed.  If 2, require rudder stick or GCS arming and send 0 PWM to throttle channel when disarmed. See the ARMING_CHECK_* parameters to see what checks are done before arming. Note, if setting this parameter to 0 a reboot is required to arm the plane.  Also note, even with this parameter at 0, if ARMING_CHECK parameter is not also zero the plane may fail to arm throttle at boot due to a pre-arm check failure.
     // @Values: 0:Disabled,1:THR_MIN PWM when disarmed,2:0 PWM when disarmed
     // @User: Advanced
-    AP_GROUPINFO("REQUIRE",     0,      AP_Arming,  require,                 0),
+    AP_GROUPINFO("REQUIRE",     0,      AP_Arming,  require,                 1),
 
     // @Param: DIS_RUD
     // @DisplayName: Disable Rudder Arming
@@ -57,6 +57,8 @@ AP_Arming::AP_Arming(const AP_AHRS &ahrs_ref, const AP_Baro &baro, Compass &comp
    , _compass(compass)
    , home_is_set(home_set)
    , gcs_send_text_P(gcs_print_func)
+   , last_accel_pass_ms(0)
+   , last_gyro_pass_ms(0)
 {
     AP_Param::setup_object_defaults(this, var_info);
 }
@@ -153,9 +155,9 @@ bool AP_Arming::ins_checks(bool report)
             }
             return false;
         }
-        if (ahrs.have_inertial_nav() && !ins.calibrated()) {
+        if (!ins.calibrated()) {
             if (report) {
-                gcs_send_text_P(SEVERITY_HIGH,PSTR("PreArm: EKF requires 3D accel cal"));
+                gcs_send_text_P(SEVERITY_HIGH,PSTR("PreArm: 3D accel cal needed"));
             }
             return false;
         }
@@ -167,8 +169,12 @@ bool AP_Arming::ins_checks(bool report)
                 // get next accel vector
                 const Vector3f &accel_vec = ins.get_accel(i);
                 Vector3f vec_diff = accel_vec - prime_accel_vec;
-                // allow for up to 0.3 m/s/s difference
-                if (vec_diff.length() > 0.3f) {
+                // allow for up to 0.3 m/s/s difference. Has to pass
+                // in last 10 seconds
+                if (vec_diff.length() <= 0.3f) {
+                    last_accel_pass_ms = hal.scheduler->millis();
+                }
+                if (hal.scheduler->millis() - last_accel_pass_ms > 10000) {
                     if (report) {
                         gcs_send_text_P(SEVERITY_HIGH,PSTR("PreArm: inconsistent Accelerometers"));
                     }
@@ -184,8 +190,12 @@ bool AP_Arming::ins_checks(bool report)
                 // get next gyro vector
                 const Vector3f &gyro_vec = ins.get_gyro(i);
                 Vector3f vec_diff = gyro_vec - prime_gyro_vec;
-                // allow for up to 5 degrees/s difference
-                if (vec_diff.length() > radians(5)) {
+                // allow for up to 5 degrees/s difference. Pass if its
+                // been OK in last 10 seconds
+                if (vec_diff.length() <= radians(5)) {
+                    last_gyro_pass_ms = hal.scheduler->millis();
+                }
+                if (hal.scheduler->millis() - last_gyro_pass_ms > 10000) {
                     if (report) {
                         gcs_send_text_P(SEVERITY_HIGH,PSTR("PreArm: inconsistent gyros"));
                     }
@@ -260,9 +270,7 @@ bool AP_Arming::gps_checks(bool report)
 
         //GPS OK?
         if (home_is_set == HOME_UNSET || 
-            gps.status() < AP_GPS::GPS_OK_FIX_3D ||              
-            AP_Notify::flags.gps_glitching ||
-            AP_Notify::flags.failsafe_gps) {
+            gps.status() < AP_GPS::GPS_OK_FIX_3D) {
             if (report) {
                 gcs_send_text_P(SEVERITY_HIGH,PSTR("PreArm: Bad GPS Position"));
             }

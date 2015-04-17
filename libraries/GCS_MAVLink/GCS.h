@@ -56,6 +56,8 @@ enum ap_message {
     MSG_MOUNT_STATUS,
     MSG_OPTICAL_FLOW,
     MSG_GIMBAL_REPORT,
+    MSG_EKF_STATUS_REPORT,
+    MSG_LOCAL_POSITION,
     MSG_RETRY_DEFERRED // this must be last
 };
 
@@ -70,7 +72,7 @@ public:
     GCS_MAVLINK();
     void        update(void (*run_cli)(AP_HAL::UARTDriver *));
     void        init(AP_HAL::UARTDriver *port, mavlink_channel_t mav_chan);
-    void        setup_uart(const AP_SerialManager& serial_manager, AP_SerialManager::SerialProtocol protocol);
+    void        setup_uart(const AP_SerialManager& serial_manager, AP_SerialManager::SerialProtocol protocol, uint8_t instance);
     void        send_message(enum ap_message id);
     void        send_text(gcs_severity severity, const char *str);
     void        send_text_P(gcs_severity severity, const prog_char_t *str);
@@ -134,6 +136,7 @@ public:
     void send_opticalflow(AP_AHRS_NavEKF &ahrs, const OpticalFlow &optflow);
 #endif
     void send_autopilot_version(void) const;
+    void send_local_position(const AP_AHRS &ahrs) const;
 
     // return a bitmap of active channels. Used by libraries to loop
     // over active channels to send to all active channels    

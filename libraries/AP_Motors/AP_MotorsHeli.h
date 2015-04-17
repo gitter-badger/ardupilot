@@ -97,8 +97,9 @@ public:
                    RC_Channel&      swash_servo_2,
                    RC_Channel&      swash_servo_3,
                    RC_Channel&      yaw_servo,
+                   uint16_t         loop_rate,
                    uint16_t         speed_hz = AP_MOTORS_HELI_SPEED_DEFAULT) :
-        AP_Motors(rc_roll, rc_pitch, rc_throttle, rc_yaw, speed_hz),
+        AP_Motors(rc_roll, rc_pitch, rc_throttle, rc_yaw, loop_rate, speed_hz),
         _servo_aux(servo_aux),
         _servo_rsc(servo_rotor),
         _servo_1(swash_servo_1),
@@ -207,8 +208,9 @@ public:
 protected:
 
     // output - sends commands to the motors
-    void output_armed();
-    void output_disarmed();
+    void                output_armed_stabilizing();
+    void                output_armed_not_stabilizing();
+    void                output_disarmed();
 
 private:
 

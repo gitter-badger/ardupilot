@@ -18,7 +18,7 @@
 
 extern const AP_HAL::HAL& hal;
 
-LogReader::LogReader(AP_AHRS &_ahrs, AP_InertialSensor &_ins, AP_Baro &_baro, AP_Compass_HIL &_compass, AP_GPS &_gps, AP_Airspeed &_airspeed, DataFlash_Class &_dataflash) :
+LogReader::LogReader(AP_AHRS &_ahrs, AP_InertialSensor &_ins, AP_Baro &_baro, Compass &_compass, AP_GPS &_gps, AP_Airspeed &_airspeed, DataFlash_Class &_dataflash) :
     vehicle(VEHICLE_UNKNOWN),
     fd(-1),
     ahrs(_ahrs),
@@ -353,7 +353,8 @@ bool LogReader::update(uint8_t &type)
 
     case LOG_IMU_MSG: {
         struct log_IMU msg;
-        if (sizeof(msg) != f.length && sizeof(msg) != f.length+8) {
+        memset(&msg, 0, sizeof(msg));
+        if (sizeof(msg) < f.length) {
             printf("Bad IMU length %u expected %u\n",
                    (unsigned)sizeof(msg), (unsigned)f.length);
             exit(1);
@@ -372,7 +373,8 @@ bool LogReader::update(uint8_t &type)
 
     case LOG_IMU2_MSG: {
         struct log_IMU msg;
-        if (sizeof(msg) != f.length && sizeof(msg) != f.length+8) {
+        memset(&msg, 0, sizeof(msg));
+        if (sizeof(msg) < f.length) {
             printf("Bad IMU2 length %u expected %u\n",
                    (unsigned)sizeof(msg), (unsigned)f.length);
             exit(1);
@@ -391,8 +393,10 @@ bool LogReader::update(uint8_t &type)
 
     case LOG_IMU3_MSG: {
         struct log_IMU msg;
-        if(sizeof(msg) != f.length) {
-            printf("Bad IMU3 length\n");
+        memset(&msg, 0, sizeof(msg));
+        if (sizeof(msg) < f.length) {
+            printf("Bad IMU3 length %u expected %u\n",
+                   (unsigned)sizeof(msg), (unsigned)f.length);
             exit(1);
         }
         memcpy(&msg, data, sizeof(msg));

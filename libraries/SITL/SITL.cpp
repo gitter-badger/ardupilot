@@ -35,7 +35,7 @@ const AP_Param::GroupInfo SITL::var_info[] PROGMEM = {
     AP_GROUPINFO("GPS_DISABLE",4, SITL,  gps_disable, 0),
     AP_GROUPINFO("DRIFT_SPEED",5, SITL,  drift_speed, 0.2),
     AP_GROUPINFO("DRIFT_TIME", 6, SITL,  drift_time,  5),
-    AP_GROUPINFO("GPS_DELAY",  7, SITL,  gps_delay,   2),
+    AP_GROUPINFO("GPS_DELAY",  7, SITL,  gps_delay,   1),
     AP_GROUPINFO("ENGINE_MUL", 8, SITL,  engine_mul,  1),
     AP_GROUPINFO("WIND_SPD",   9, SITL,  wind_speed,  0),
     AP_GROUPINFO("WIND_DIR",  10, SITL,  wind_direction,  180),
@@ -66,6 +66,9 @@ const AP_Param::GroupInfo SITL::var_info[] PROGMEM = {
     AP_GROUPINFO("FLOW_RATE",     35, SITL,  flow_rate, 10),
     AP_GROUPINFO("FLOW_DELAY",    36, SITL,  flow_delay, 0),
     AP_GROUPINFO("GPS_DRIFTALT",  37, SITL,  gps_drift_alt, 0),
+    AP_GROUPINFO("BARO_DELAY",    38, SITL,  baro_delay, 0),
+    AP_GROUPINFO("MAG_DELAY",     39, SITL,  mag_delay, 0),
+    AP_GROUPINFO("WIND_DELAY",    40, SITL,  wind_delay, 0),
     AP_GROUPEND
 };
 

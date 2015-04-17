@@ -156,10 +156,8 @@ float AP_Airspeed::get_pressure(void)
     }
     float pressure = 0;
     if (_pin == AP_AIRSPEED_I2C_PIN) {
-         hal.console->printf("USING_I2C: %4d \n",_pin.get());
         _healthy = digital.get_differential_pressure(pressure);
     } else {
-        hal.console->printf("USING_ANALOG: %4d, and %4d \n",_pin.get(),AP_AIRSPEED_I2C_PIN);
         _healthy = analog.get_differential_pressure(pressure);
     }
     return pressure;

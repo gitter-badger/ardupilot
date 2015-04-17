@@ -1,0 +1,8 @@
+
+# bash gets confused if you pass in .sh files from windows
+# This breaks Vagrant for some users.
+*.sh text eol=lf
+
+*.pde text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf

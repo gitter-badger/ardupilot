@@ -1,6 +1,6 @@
 /// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 
-#define THISFIRMWARE "ArduPlane V3.3.0alpha1"
+#define THISFIRMWARE "ArduPlane V3.3.0beta1"
 /*
    Lead developer: Andrew Tridgell
  
@@ -151,6 +151,7 @@ static AP_Notify notify;
 static void update_events(void);
 void gcs_send_text_fmt(const prog_char_t *fmt, ...);
 static void print_flight_mode(AP_HAL::BetterStream *port, uint8_t mode);
+static bool arm_motors(AP_Arming::ArmingMethod method);
 
 ////////////////////////////////////////////////////////////////////////////////
 // DataFlash
@@ -194,19 +195,7 @@ static AP_Int8          *flight_modes = &g.flight_mode1;
 
 static AP_Baro barometer;
 
-#if CONFIG_COMPASS == HAL_COMPASS_PX4
-static AP_Compass_PX4 compass;
-#elif CONFIG_COMPASS == HAL_COMPASS_VRBRAIN
-static AP_Compass_VRBRAIN compass;
-#elif CONFIG_COMPASS == HAL_COMPASS_HMC5843
-static AP_Compass_HMC5843 compass;
-#elif CONFIG_COMPASS == HAL_COMPASS_HIL
-static AP_Compass_HIL compass;
-#elif CONFIG_COMPASS == HAL_COMPASS_AK8963
-static AP_Compass_AK8963_MPU9250 compass;
-#else
- #error Unrecognized CONFIG_COMPASS setting
-#endif
+Compass compass;
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_APM1
 AP_ADC_ADS7844 apm1_adc;
@@ -530,8 +519,9 @@ static struct {
     // denotes if a go-around has been commanded for landing
     bool commanded_go_around:1;
 
-    // Altitude threshold to complete a takeoff command in autonomous modes.  Centimeters
-    int32_t takeoff_altitude_cm;
+    // Altitude threshold to complete a takeoff command in autonomous
+    // modes.  Centimeters above home
+    int32_t takeoff_altitude_rel_cm;
 
     // Minimum pitch to hold during takeoff command execution.  Hundredths of a degree
     int16_t takeoff_pitch_cd;
@@ -557,6 +547,9 @@ static struct {
 
     // proportion to next waypoint
     float wp_proportion;
+
+    // last time is_flying() returned true in milliseconds
+    uint32_t last_flying_ms;
 } auto_state = {
     takeoff_complete : true,
     land_complete : false,
@@ -566,13 +559,16 @@ static struct {
     fbwa_tdrag_takeoff_mode : false,
     checked_for_autoland : false,
     commanded_go_around : false,
-    takeoff_altitude_cm : 0,
+    takeoff_altitude_rel_cm : 0,
     takeoff_pitch_cd : 0,
     highest_airspeed : 0,
     initial_pitch_cd : 0,
     next_turn_angle  : 90.0f,
     land_sink_rate   : 0,
-    takeoff_speed_time_ms : 0
+    takeoff_speed_time_ms : 0,
+    wp_distance : 0,
+    wp_proportion : 0,
+    last_flying_ms : 0
 };
 
 // true if we are in an auto-throttle mode, which means
@@ -583,6 +579,9 @@ static bool auto_throttle_mode;
 static bool throttle_suppressed;
 
 AP_SpdHgtControl::FlightStage flight_stage = AP_SpdHgtControl::FLIGHT_NORMAL;
+
+// probability of aircraft is currently in flight. range from 0 to 1 where 1 is 100% sure we're in flight
+static float isFlyingProbability = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Loiter management
@@ -866,10 +865,10 @@ static void ahrs_update()
     hal.util->set_soft_armed(arming.is_armed() &&
                    hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED);
 
-#if HIL_MODE != HIL_MODE_DISABLED
-    // update hil before AHRS update
-    gcs_update();
-#endif
+    if (g.hil_mode == 1) {
+        // update hil before AHRS update
+        gcs_update();
+    }
 
     ahrs.update();
 
@@ -900,7 +899,7 @@ static void update_speed_height(void)
 	    // Call TECS 50Hz update. Note that we call this regardless of
 	    // throttle suppressed, as this needs to be running for
 	    // takeoff detection
-        SpdHgt_Controller->update_50hz(relative_altitude());
+        SpdHgt_Controller->update_50hz(tecs_hgt_afe());
     }
 }
 
@@ -1023,6 +1022,9 @@ static void one_second_loop()
 
     update_aux();
 
+    // determine if we are flying or not
+    determine_is_flying();
+
     // update notify flags
     AP_Notify::flags.pre_arm_check = arming.pre_arm_checks(false);
     AP_Notify::flags.pre_arm_gps_check = true;
@@ -1060,6 +1062,13 @@ static void terrain_update(void)
 {
 #if AP_TERRAIN_AVAILABLE
     terrain.update();
+
+    // tell the rangefinder our height, so it can go into power saving
+    // mode if available
+    float height;
+    if (terrain.height_above_terrain(height, true)) {
+        rangefinder.set_estimated_terrain_height(height);
+    }
 #endif
 }
 
@@ -1186,9 +1195,8 @@ static void handle_auto_mode(void)
     case MAV_CMD_NAV_TAKEOFF:
         takeoff_calc_roll();
         takeoff_calc_pitch();
-        
-        // max throttle for takeoff
-        channel_throttle->servo_out = takeoff_throttle();
+        calc_throttle();
+
         break;
 
     case MAV_CMD_NAV_LAND:
@@ -1517,7 +1525,7 @@ static void update_flight_stage(void)
                                                  flight_stage,
                                                  auto_state.takeoff_pitch_cd,
                                                  throttle_nudge,
-                                                 relative_altitude(),
+                                                 tecs_hgt_afe(),
                                                  aerodynamic_load_factor);
         if (should_log(MASK_LOG_TECS)) {
             Log_Write_TECS_Tuning();
@@ -1527,6 +1535,69 @@ static void update_flight_stage(void)
     // tell AHRS the airspeed to true airspeed ratio
     airspeed.set_EAS2TAS(barometer.get_EAS2TAS());
 }
+
+
+
+/*
+  Do we think we are flying?
+  Probabilistic method where a bool is low-passed and considered a probability.
+*/
+static void determine_is_flying(void)
+{
+    float aspeed;
+    bool isFlyingBool;
+
+    bool airspeedMovement = ahrs.airspeed_estimate(&aspeed) && (aspeed >= 5);
+
+    // If we don't have a GPS lock then don't use GPS for this test
+    bool gpsMovement = (gps.status() < AP_GPS::GPS_OK_FIX_2D ||
+                        gps.ground_speed() >= 5);
+
+
+    if (hal.util->get_soft_armed()) {
+        // when armed, we need overwhelming evidence that we ARE NOT flying
+        isFlyingBool = airspeedMovement || gpsMovement;
+
+        /*
+          make is_flying() more accurate for landing approach
+         */
+        if (flight_stage == AP_SpdHgtControl::FLIGHT_LAND_APPROACH &&
+            fabsf(auto_state.land_sink_rate) > 0.2f) {
+            isFlyingBool = true;
+        }
+    } else {
+        // when disarmed, we need overwhelming evidence that we ARE flying
+        isFlyingBool = airspeedMovement && gpsMovement;
+    }
+
+    // low-pass the result.
+    isFlyingProbability = (0.6f * isFlyingProbability) + (0.4f * (float)isFlyingBool);
+
+    /*
+      update last_flying_ms so we always know how long we have not
+      been flying for. This helps for crash detection and auto-disarm
+     */
+    if (is_flying()) {
+        auto_state.last_flying_ms = hal.scheduler->millis();
+    }
+}
+
+/*
+  return true if we think we are flying. This is a probabilistic
+  estimate, and needs to be used very carefully. Each use case needs
+  to be thought about individually.
+ */
+static bool is_flying(void)
+{
+    if (hal.util->get_soft_armed()) {
+        // when armed, assume we're flying unless we probably aren't
+        return (isFlyingProbability >= 0.1f);
+    }
+
+    // when disarmed, assume we're not flying unless we probably are
+    return (isFlyingProbability >= 0.9f);
+}
+
 
 #if OPTFLOW == ENABLED
 // called at 50hz

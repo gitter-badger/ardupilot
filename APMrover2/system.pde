@@ -103,7 +103,7 @@ static void init_ardupilot()
     barometer.init();
 
 	// init the GCS
-    gcs[0].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_Console);
+    gcs[0].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_Console, 0);
 
     // we start by assuming USB connected, as we initialed the serial
     // port with SERIAL0_BAUD. check_usb_mux() fixes this if need be.    
@@ -111,11 +111,11 @@ static void init_ardupilot()
     check_usb_mux();
 
     // setup serial port for telem1
-    gcs[1].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink1);
+    gcs[1].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, 0);
 
 #if MAVLINK_COMM_NUM_BUFFERS > 2
     // setup serial port for telem2
-    gcs[2].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink2);
+    gcs[2].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, 1);
 #endif
 
     // setup frsky telemetry
@@ -192,13 +192,15 @@ static void init_ardupilot()
 	// the system in an odd state, we don't let the user exit the top
 	// menu; they must reset in order to fly.
 	//
-    const prog_char_t *msg = PSTR("\nPress ENTER 3 times to start interactive setup\n");
-    cliSerial->println_P(msg);
-    if (gcs[1].initialised && (gcs[1].get_uart() != NULL)) {
-        gcs[1].get_uart()->println_P(msg);
-    }
-    if (num_gcs > 2 && gcs[2].initialised && (gcs[2].get_uart() != NULL)) {
-        gcs[2].get_uart()->println_P(msg);
+    if (g.cli_enabled == 1) {
+        const prog_char_t *msg = PSTR("\nPress ENTER 3 times to start interactive setup\n");
+        cliSerial->println_P(msg);
+        if (gcs[1].initialised && (gcs[1].get_uart() != NULL)) {
+            gcs[1].get_uart()->println_P(msg);
+        }
+        if (num_gcs > 2 && gcs[2].initialised && (gcs[2].get_uart() != NULL)) {
+            gcs[2].get_uart()->println_P(msg);
+        }
     }
 #endif
 
@@ -233,7 +235,7 @@ static void startup_ground(void)
 	//------------------------
     //
 
-	startup_INS_ground(false);
+	startup_INS_ground();
 
 	// read the radio to set trims
 	// ---------------------------
@@ -366,7 +368,7 @@ static void failsafe_trigger(uint8_t failsafe_type, bool on)
     }
 }
 
-static void startup_INS_ground(bool force_accel_level)
+static void startup_INS_ground(void)
 {
     gcs_send_text_P(SEVERITY_MEDIUM, PSTR("Warming up ADC..."));
  	mavlink_delay(500);
@@ -381,7 +383,7 @@ static void startup_INS_ground(bool force_accel_level)
     ahrs.set_vehicle_class(AHRS_VEHICLE_GROUND);
 
     AP_InertialSensor::Start_style style;
-    if (g.skip_gyro_cal && !force_accel_level) {
+    if (g.skip_gyro_cal) {
         style = AP_InertialSensor::WARM_START;
     } else {
         style = AP_InertialSensor::COLD_START;
@@ -389,13 +391,6 @@ static void startup_INS_ground(bool force_accel_level)
 
 	ins.init(style, ins_sample_rate);
 
-    if (force_accel_level) {
-        // when MANUAL_LEVEL is set to 1 we don't do accelerometer
-        // levelling on each boot, and instead rely on the user to do
-        // it once via the ground station	
-        ins.init_accel();
-        ahrs.set_trim(Vector3f(0, 0, 0));
-	}
     ahrs.reset();
 }
 
@@ -429,9 +424,9 @@ static void check_usb_mux(void)
     // SERIAL0_BAUD, but when connected as a TTL serial port we run it
     // at SERIAL1_BAUD.
     if (usb_connected) {
-        serial_manager.set_console_baud(AP_SerialManager::SerialProtocol_Console);
+        serial_manager.set_console_baud(AP_SerialManager::SerialProtocol_Console, 0);
     } else {
-        serial_manager.set_console_baud(AP_SerialManager::SerialProtocol_MAVLink1);
+        serial_manager.set_console_baud(AP_SerialManager::SerialProtocol_MAVLink, 0);
     }
 #endif
 }

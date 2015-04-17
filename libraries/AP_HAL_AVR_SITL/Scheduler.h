@@ -73,8 +73,11 @@ private:
     static double _cyg_sec();
 #endif
 
-    bool _initialized;
+    void stop_clock(uint64_t time_usec);
 
+    bool _initialized;
+    volatile uint64_t stopped_clock_usec;
+    pthread_barrier_t clock_barrier;
 };
 #endif
 #endif // __AP_HAL_SITL_SCHEDULER_H__

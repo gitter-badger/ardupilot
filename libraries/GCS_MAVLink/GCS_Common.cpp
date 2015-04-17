@@ -65,12 +65,12 @@ GCS_MAVLINK::init(AP_HAL::UARTDriver *port, mavlink_channel_t mav_chan)
   setup a UART, handling begin() and init()
  */
 void
-GCS_MAVLINK::setup_uart(const AP_SerialManager& serial_manager, AP_SerialManager::SerialProtocol protocol)
+GCS_MAVLINK::setup_uart(const AP_SerialManager& serial_manager, AP_SerialManager::SerialProtocol protocol, uint8_t instance)
 {
     // search for serial port
 
     AP_HAL::UARTDriver *uart;
-    uart = serial_manager.find_serial(protocol);
+    uart = serial_manager.find_serial(protocol, instance);
     if (uart == NULL) {
         // return immediately if not found
         return;
@@ -78,7 +78,7 @@ GCS_MAVLINK::setup_uart(const AP_SerialManager& serial_manager, AP_SerialManager
 
     // get associated mavlink channel
     mavlink_channel_t mav_chan;
-    if (!serial_manager.get_mavlink_channel(protocol, mav_chan)) {
+    if (!serial_manager.get_mavlink_channel(protocol, instance, mav_chan)) {
         // return immediately in unlikely case mavlink channel cannot be found
         return;
     }
@@ -102,7 +102,7 @@ GCS_MAVLINK::setup_uart(const AP_SerialManager& serial_manager, AP_SerialManager
     uart->set_flow_control(old_flow_control);
 
     // now change back to desired baudrate
-    uart->begin(serial_manager.find_baudrate(protocol));
+    uart->begin(serial_manager.find_baudrate(protocol, instance));
 
     // and init the gcs instance
     init(uart, mav_chan);
@@ -572,66 +572,39 @@ void GCS_MAVLINK::handle_param_request_read(mavlink_message_t *msg)
 
 void GCS_MAVLINK::handle_param_set(mavlink_message_t *msg, DataFlash_Class *DataFlash)
 {
-    AP_Param *vp;
-    enum ap_var_type var_type;
-
     mavlink_param_set_t packet;
     mavlink_msg_param_set_decode(msg, &packet);
+    enum ap_var_type var_type;
 
     // set parameter
+    AP_Param *vp;
     char key[AP_MAX_NAME_SIZE+1];
     strncpy(key, (char *)packet.param_id, AP_MAX_NAME_SIZE);
     key[AP_MAX_NAME_SIZE] = 0;
 
-    // find the requested parameter
-    vp = AP_Param::find(key, &var_type);
-    if ((NULL != vp) &&                                 // exists
-        !isnan(packet.param_value) &&                       // not nan
-        !isinf(packet.param_value)) {                       // not inf
+    vp = AP_Param::set_param_by_name(key, packet.param_value, &var_type);
+    if (vp == NULL) {
+        return;
+    }
 
-        // add a small amount before casting parameter values
-        // from float to integer to avoid truncating to the
-        // next lower integer value.
-        float rounding_addition = 0.01;
-        
-        // handle variables with standard type IDs
-        if (var_type == AP_PARAM_FLOAT) {
-            ((AP_Float *)vp)->set_and_save(packet.param_value);
-        } else if (var_type == AP_PARAM_INT32) {
-            if (packet.param_value < 0) rounding_addition = -rounding_addition;
-            float v = packet.param_value+rounding_addition;
-            v = constrain_float(v, -2147483648.0, 2147483647.0);
-            ((AP_Int32 *)vp)->set_and_save(v);
-        } else if (var_type == AP_PARAM_INT16) {
-            if (packet.param_value < 0) rounding_addition = -rounding_addition;
-            float v = packet.param_value+rounding_addition;
-            v = constrain_float(v, -32768, 32767);
-            ((AP_Int16 *)vp)->set_and_save(v);
-        } else if (var_type == AP_PARAM_INT8) {
-            if (packet.param_value < 0) rounding_addition = -rounding_addition;
-            float v = packet.param_value+rounding_addition;
-            v = constrain_float(v, -128, 127);
-            ((AP_Int8 *)vp)->set_and_save(v);
-        } else {
-            // we don't support mavlink set on this parameter
-            return;
-        }
+    // save the change
+    vp->save();
 
-        // Report back the new value if we accepted the change
-        // we send the value we actually set, which could be
-        // different from the value sent, in case someone sent
-        // a fractional value to an integer type
-        mavlink_msg_param_value_send_buf(
-            msg,
-            chan,
-            key,
-            vp->cast_to_float(var_type),
-            mav_var_type(var_type),
-            _count_parameters(),
-            -1);     // XXX we don't actually know what its index is...
-        if (DataFlash != NULL) {
-            DataFlash->Log_Write_Parameter(key, vp->cast_to_float(var_type));
-        }
+    // Report back the new value if we accepted the change
+    // we send the value we actually set, which could be
+    // different from the value sent, in case someone sent
+    // a fractional value to an integer type
+    mavlink_msg_param_value_send_buf(
+        msg,
+        chan,
+        key,
+        vp->cast_to_float(var_type),
+        mav_var_type(var_type),
+        _count_parameters(),
+        -1);     // XXX we don't actually know what its index is...
+
+    if (DataFlash != NULL) {
+        DataFlash->Log_Write_Parameter(key, vp->cast_to_float(var_type));
     }
 }
 
@@ -1047,7 +1020,12 @@ void GCS_MAVLINK::send_raw_imu(const AP_InertialSensor &ins, const Compass &comp
 {
     const Vector3f &accel = ins.get_accel(0);
     const Vector3f &gyro = ins.get_gyro(0);
-    const Vector3f &mag = compass.get_field(0);
+    Vector3f mag;
+    if (compass.get_count() >= 1) {
+        mag = compass.get_field(0);
+    } else {
+        mag.zero();
+    }
 
     mavlink_msg_raw_imu_send(
         chan,
@@ -1069,7 +1047,11 @@ void GCS_MAVLINK::send_raw_imu(const AP_InertialSensor &ins, const Compass &comp
     }
     const Vector3f &accel2 = ins.get_accel(1);
     const Vector3f &gyro2 = ins.get_gyro(1);
-    const Vector3f &mag2 = compass.get_field(1);
+    if (compass.get_count() >= 2) {
+        mag = compass.get_field(1);
+    } else {
+        mag.zero();
+    }
     mavlink_msg_scaled_imu2_send(
         chan,
         hal.scheduler->millis(),
@@ -1079,9 +1061,35 @@ void GCS_MAVLINK::send_raw_imu(const AP_InertialSensor &ins, const Compass &comp
         gyro2.x * 1000.0f,
         gyro2.y * 1000.0f,
         gyro2.z * 1000.0f,
-        mag2.x,
-        mag2.y,
-        mag2.z);        
+        mag.x,
+        mag.y,
+        mag.z);        
+#endif
+#if INS_MAX_INSTANCES > 2
+    if (ins.get_gyro_count() <= 2 &&
+        ins.get_accel_count() <= 2 &&
+        compass.get_count() <= 2) {
+        return;
+    }
+    const Vector3f &accel3 = ins.get_accel(2);
+    const Vector3f &gyro3 = ins.get_gyro(2);
+    if (compass.get_count() >= 3) {
+        mag = compass.get_field(2);
+    } else {
+        mag.zero();
+    }
+    mavlink_msg_scaled_imu3_send(
+        chan,
+        hal.scheduler->millis(),
+        accel3.x * 1000.0f / GRAVITY_MSS,
+        accel3.y * 1000.0f / GRAVITY_MSS,
+        accel3.z * 1000.0f / GRAVITY_MSS,
+        gyro3.x * 1000.0f,
+        gyro3.y * 1000.0f,
+        gyro3.z * 1000.0f,
+        mag.x,
+        mag.y,
+        mag.z);        
 #endif
 }
 
@@ -1295,3 +1303,26 @@ void GCS_MAVLINK::send_autopilot_version(void) const
     );
 }
 
+
+/*
+  send LOCAL_POSITION_NED message
+ */
+void GCS_MAVLINK::send_local_position(const AP_AHRS &ahrs) const
+{
+    Vector3f local_position, velocity;
+    if (!ahrs.get_relative_position_NED(local_position) ||
+        !ahrs.get_velocity_NED(velocity)) {
+        // we don't know the position and velocity
+        return;
+    }
+
+    mavlink_msg_local_position_ned_send(
+        chan,
+        hal.scheduler->millis(),
+        local_position.x,
+        local_position.y,
+        local_position.z,
+        velocity.x,
+        velocity.y,
+        velocity.z);
+}

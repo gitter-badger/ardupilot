@@ -112,8 +112,8 @@ void AP_Mount_MAVLink::handle_gimbal_report(mavlink_channel_t chan, mavlink_mess
                             _gimbal_report.delta_velocity_y,
                             _gimbal_report.delta_velocity_z);
     Vector3f joint_angles(_gimbal_report.joint_roll,
-                          _gimbal_report.joint_pitch,
-                          _gimbal_report.joint_yaw);
+                          _gimbal_report.joint_el,
+                          _gimbal_report.joint_az);
 
     _ekf.RunEKF(_gimbal_report.delta_time, delta_angles, delta_velocity, joint_angles);
 
@@ -138,8 +138,7 @@ void AP_Mount_MAVLink::handle_gimbal_report(mavlink_channel_t chan, mavlink_mess
     mavlink_msg_gimbal_control_send(chan, 
                                     msg->sysid,
                                     msg->compid,
-                                    rateDemand.x, rateDemand.y, rateDemand.z, // demanded rates
-                                    gyroBias.x, gyroBias.y, gyroBias.z);
+                                    rateDemand.x, rateDemand.y, rateDemand.z);
 }
 
 /*
@@ -157,8 +156,8 @@ void AP_Mount_MAVLink::send_gimbal_report(mavlink_channel_t chan)
                                    _gimbal_report.delta_velocity_y, 
                                    _gimbal_report.delta_velocity_z, 
                                    _gimbal_report.joint_roll, 
-                                   _gimbal_report.joint_pitch, 
-                                   _gimbal_report.joint_yaw);
+                                   _gimbal_report.joint_el, 
+                                   _gimbal_report.joint_az);
     float tilt;
     Vector3f velocity, euler, gyroBias;
     _ekf.getDebug(tilt, velocity, euler, gyroBias);
@@ -194,17 +193,17 @@ Vector3f AP_Mount_MAVLink::gimbal_update_control1(const Vector3f &ef_target_eule
     //divide the demanded quaternion by the estimated to get the error
     Quaternion quatErr = quatDem / quatEst;
 
-    // convert the quaternion to an angle error vector
+    // convert the quaternion to an angle error vector using a first order approximation
     Vector3f deltaAngErr;
-    float scaler = 1.0f-quatErr[0]*quatErr[0];
-    if (scaler > 1e-12) {
-        scaler = 1.0f/sqrtf(scaler);
-        deltaAngErr.x = quatErr[1] * scaler;
-        deltaAngErr.y = quatErr[2] * scaler;
-        deltaAngErr.z = quatErr[3] * scaler;
+    float scaler;
+    if (quatErr[0] >= 0.0f) {
+        scaler = 2.0f;
     } else {
-        deltaAngErr.zero();
+        scaler = -2.0f;
     }
+    deltaAngErr.x = quatErr[1] * scaler;
+    deltaAngErr.y = quatErr[2] * scaler;
+    deltaAngErr.z = quatErr[3] * scaler;
  
     // multiply the angle error vector by a gain to calculate a demanded gimbal rate
     Vector3f rateDemand = deltaAngErr * 1.0f;
