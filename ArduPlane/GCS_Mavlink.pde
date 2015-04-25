@@ -494,6 +494,14 @@ static void NOINLINE send_statustext(mavlink_channel_t chan)
         s->text);
 }
 
+static void NOINLINE send_quaternions(mavlink_channel_t chan)
+{
+     Quaternion quat;
+     ahrs.get_NavEKF().getQuaternion(quat);
+     Vector3f gyros  = ins.get_gyro();
+     mavlink_msg_attitude_quaternion_send(chan, millis(), quat.q1, quat.q2, quat.q3, quat.q4, gyros.x, gyros.y, gyros.z);
+}
+
 // are we still delaying telemetry to try to avoid Xbee bricking?
 static bool telemetry_delayed(mavlink_channel_t chan)
 {
@@ -553,6 +561,7 @@ bool GCS_MAVLINK::try_send_message(enum ap_message id)
     case MSG_ATTITUDE:
         CHECK_PAYLOAD_SIZE(ATTITUDE);
         send_attitude(chan);
+        send_quaternions(chan);
         break;
 
     case MSG_LOCATION:
