@@ -149,6 +149,12 @@ public:
     */
     static void send_statustext_all(const prog_char_t *msg);
 
+    /*
+      send a MAVLink message to all components with this vehicle's system id
+      This is a no-op if no routes to components have been learned
+    */
+    static void send_to_components(const mavlink_message_t* msg) { routing.send_to_components(msg); }
+
 private:
     void        handleMessage(mavlink_message_t * msg);
 
@@ -290,6 +296,8 @@ private:
     void lock_channel(mavlink_channel_t chan, bool lock);
     void handle_set_mode(mavlink_message_t* msg, bool (*set_mode)(uint8_t mode));
     void handle_gimbal_report(AP_Mount &mount, mavlink_message_t *msg) const;
+
+    void handle_gps_inject(const mavlink_message_t *msg, AP_GPS &gps);
 
     // return true if this channel has hardware flow control
     bool have_flow_control(void);

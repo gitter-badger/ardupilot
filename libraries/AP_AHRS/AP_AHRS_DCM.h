@@ -30,12 +30,8 @@ public:
         _omega_I_sum_time(0.0f),
         _renorm_val_sum(0.0f),
         _renorm_val_count(0),
-        _error_rp_sum(0.0f),
-        _error_rp_count(0),
-        _error_rp_last(0.0f),
-        _error_yaw_sum(0.0f),
-        _error_yaw_count(0),
-        _error_yaw_last(0.0f),
+        _error_rp(1.0f),
+        _error_yaw(1.0f),
         _gps_last_update(0),
         _ra_deltat(0.0f),
         _ra_sum_start(0),
@@ -59,8 +55,8 @@ public:
 
         // these are experimentally derived from the simulator
         // with large drift levels
-        _ki = 0.0087;
-        _ki_yaw = 0.01;
+        _ki = 0.0087f;
+        _ki_yaw = 0.01f;
     }
 
     // return the smoothed gyro vector corrected for drift
@@ -93,8 +89,8 @@ public:
     virtual bool get_position(struct Location &loc) const;
 
     // status reporting
-    float           get_error_rp(void);
-    float           get_error_yaw(void);
+    float           get_error_rp(void) const { return _error_rp; } 
+    float           get_error_yaw(void) const { return _error_yaw; }
 
     // return a wind estimation vector, in m/s
     Vector3f wind_estimate(void) {
@@ -154,12 +150,8 @@ private:
     // state to support status reporting
     float _renorm_val_sum;
     uint16_t _renorm_val_count;
-    float _error_rp_sum;
-    uint16_t _error_rp_count;
-    float _error_rp_last;
-    float _error_yaw_sum;
-    uint16_t _error_yaw_count;
-    float _error_yaw_last;
+    float _error_rp;
+    float _error_yaw;
 
     // time in millis when we last got a GPS heading
     uint32_t _gps_last_update;

@@ -1,4 +1,5 @@
 import math, util, rotmat, time
+import random
 from rotmat import Vector3, Matrix3
 
 class Aircraft(object):
@@ -29,6 +30,9 @@ class Aircraft(object):
         self.wind = util.Wind('0,0,0')
         self.time_base = time.time()
         self.time_now = self.time_base + 100*1.0e-6
+
+        self.gyro_noise = math.radians(0.1)
+        self.accel_noise = 0.3
 
     def on_ground(self, position=None):
         '''return true if we are on the ground'''
@@ -70,6 +74,12 @@ class Aircraft(object):
         self.last_wall_time = time.time()
         self.achieved_rate = rate
 
+    def adjust_frame_time(self, rate):
+        '''adjust frame_time calculation'''
+        self.rate = rate
+        self.frame_time = 1.0/rate
+        self.scaled_frame_time = self.frame_time/self.speedup
+
     def sync_frame_time(self):
         '''try to synchronise simulation time with wall clock time, taking
         into account desired speedup'''
@@ -87,3 +97,15 @@ class Aircraft(object):
                 self.scaled_frame_time *= 1.001
 
         self.last_wall_time = now
+
+    def add_noise(self, throttle):
+        '''add noise based on throttle level (from 0..1)'''
+        self.gyro += Vector3(random.gauss(0, 1),
+                             random.gauss(0, 1),
+                             random.gauss(0, 1)) * throttle * self.gyro_noise
+        self.accel_body += Vector3(random.gauss(0, 1),
+                                   random.gauss(0, 1),
+                                   random.gauss(0, 1)) * throttle * self.accel_noise
+        
+        
+        

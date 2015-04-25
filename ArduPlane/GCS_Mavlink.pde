@@ -109,7 +109,7 @@ static NOINLINE void send_attitude(mavlink_channel_t chan)
         chan,
         millis(),
         ahrs.roll,
-        ahrs.pitch - radians(g.pitch_trim_cd*0.01),
+        ahrs.pitch - radians(g.pitch_trim_cd*0.01f),
         ahrs.yaw,
         omega.x,
         omega.y,
@@ -285,7 +285,7 @@ static NOINLINE void send_extended_status1(mavlink_channel_t chan)
         if (g.rangefinder_landing) {
             control_sensors_enabled |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;
         }
-        if (rangefinder.healthy()) {
+        if (rangefinder.has_data()) {
             control_sensors_health |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;            
         }
     }
@@ -341,12 +341,12 @@ static void NOINLINE send_nav_controller_output(mavlink_channel_t chan)
 {
     mavlink_msg_nav_controller_output_send(
         chan,
-        nav_roll_cd * 0.01,
-        nav_pitch_cd * 0.01,
+        nav_roll_cd * 0.01f,
+        nav_pitch_cd * 0.01f,
         nav_controller->nav_bearing_cd() * 0.01f,
         nav_controller->target_bearing_cd() * 0.01f,
         auto_state.wp_distance,
-        altitude_error_cm * 0.01,
+        altitude_error_cm * 0.01f,
         airspeed_error_cm,
         nav_controller->crosstrack_error());
 }
@@ -417,7 +417,7 @@ static void NOINLINE send_vfr_hud(mavlink_channel_t chan)
         gps.ground_speed(),
         (ahrs.yaw_sensor / 100) % 360,
         throttle_percentage(),
-        current_loc.alt / 100.0,
+        current_loc.alt / 100.0f,
         barometer.get_climb_rate());
 }
 
@@ -470,7 +470,7 @@ static void NOINLINE send_wind(mavlink_channel_t chan)
 
 static void NOINLINE send_rangefinder(mavlink_channel_t chan)
 {
-    if (!rangefinder.healthy()) {
+    if (!rangefinder.has_data()) {
         // no sonar to report
         return;
     }
@@ -1553,7 +1553,8 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_DIGICAM_CONTROL:
     {
-        do_take_picture();
+        camera.control_msg(msg);
+        log_picture();
         break;
     }
 #endif // CAMERA == ENABLED
@@ -1599,6 +1600,11 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_SERIAL_CONTROL:
         handle_serial_control(msg, gps);
         break;
+
+    case MAVLINK_MSG_ID_GPS_INJECT_DATA:
+        handle_gps_inject(msg, gps);
+        break;
+
 #endif
 
     case MAVLINK_MSG_ID_TERRAIN_DATA:

@@ -78,7 +78,7 @@ void AP_AHRS_NavEKF::update(void)
     _dcm_attitude(roll, pitch, yaw);
 
     if (!ekf_started) {
-        // wait 10 seconds
+        // wait 1 second for DCM to output a valid tilt error estimate
         if (start_time_ms == 0) {
             start_time_ms = hal.scheduler->millis();
         }
@@ -193,12 +193,12 @@ bool AP_AHRS_NavEKF::get_position(struct Location &loc) const
 }
 
 // status reporting of estimated errors
-float AP_AHRS_NavEKF::get_error_rp(void)
+float AP_AHRS_NavEKF::get_error_rp(void) const
 {
     return AP_AHRS_DCM::get_error_rp();
 }
 
-float AP_AHRS_NavEKF::get_error_yaw(void)
+float AP_AHRS_NavEKF::get_error_yaw(void) const
 {
     return AP_AHRS_DCM::get_error_yaw();
 }
@@ -359,9 +359,9 @@ bool AP_AHRS_NavEKF::initialised(void) const
 };
 
 // write optical flow data to EKF
-void  AP_AHRS_NavEKF::writeOptFlowMeas(uint8_t &rawFlowQuality, Vector2f &rawFlowRates, Vector2f &rawGyroRates, uint32_t &msecFlowMeas, uint8_t &rangeHealth, float &rawSonarRange)
+void  AP_AHRS_NavEKF::writeOptFlowMeas(uint8_t &rawFlowQuality, Vector2f &rawFlowRates, Vector2f &rawGyroRates, uint32_t &msecFlowMeas)
 {
-    EKF.writeOptFlowMeas(rawFlowQuality, rawFlowRates, rawGyroRates, msecFlowMeas, rangeHealth, rawSonarRange);
+    EKF.writeOptFlowMeas(rawFlowQuality, rawFlowRates, rawGyroRates, msecFlowMeas);
 }
 
 // inhibit GPS useage

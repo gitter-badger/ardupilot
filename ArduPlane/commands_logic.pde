@@ -13,7 +13,12 @@ static void do_change_alt(const AP_Mission::Mission_Command& cmd);
 static void do_change_speed(const AP_Mission::Mission_Command& cmd);
 static void do_set_home(const AP_Mission::Mission_Command& cmd);
 static void do_continue_and_change_alt(const AP_Mission::Mission_Command& cmd);
+static void do_loiter_to_alt(const AP_Mission::Mission_Command& cmd);
 static bool verify_nav_wp(const AP_Mission::Mission_Command& cmd);
+#if CAMERA == ENABLED
+static void do_digicam_configure(const AP_Mission::Mission_Command& cmd);
+static void do_digicam_control(const AP_Mission::Mission_Command& cmd);
+#endif
 
 
 /********************************************************************************/
@@ -73,6 +78,10 @@ start_command(const AP_Mission::Mission_Command& cmd)
 
     case MAV_CMD_NAV_LOITER_TIME:
         do_loiter_time(cmd);
+        break;
+
+    case MAV_CMD_NAV_LOITER_TO_ALT:
+        do_loiter_to_alt(cmd);
         break;
 
     case MAV_CMD_NAV_RETURN_TO_LAUNCH:
@@ -152,10 +161,12 @@ start_command(const AP_Mission::Mission_Command& cmd)
         break;
 
     case MAV_CMD_DO_DIGICAM_CONFIGURE:                  // Mission command to configure an on-board camera controller system. |Modes: P, TV, AV, M, Etc| Shutter speed: Divisor number for one second| Aperture: F stop number| ISO number e.g. 80, 100, 200, Etc| Exposure type enumerator| Command Identity| Main engine cut-off time before camera trigger in seconds/10 (0 means no cut-off)|
+        do_digicam_configure(cmd);
         break;
 
     case MAV_CMD_DO_DIGICAM_CONTROL:                    // Mission command to control an on-board camera controller system. |Session control e.g. show/hide lens| Zoom's absolute position| Zooming step value to offset zoom from the current position| Focus Locking, Unlocking or Re-locking| Shooting Command| Command Identity| Empty|
-        do_take_picture();
+        // do_digicam_control Send Digicam Control message with the camera library
+        do_digicam_control(cmd);
         break;
 
     case MAV_CMD_DO_SET_CAM_TRIGG_DIST:
@@ -215,6 +226,9 @@ static bool verify_command(const AP_Mission::Mission_Command& cmd)        // Ret
 
     case MAV_CMD_NAV_LOITER_TIME:
         return verify_loiter_time();
+
+    case MAV_CMD_NAV_LOITER_TO_ALT:
+        return verify_loiter_to_alt();
 
     case MAV_CMD_NAV_RETURN_TO_LAUNCH:
         return verify_RTL();
@@ -360,6 +374,32 @@ static void do_continue_and_change_alt(const AP_Mission::Mission_Command& cmd)
     reset_offset_altitude();
 }
 
+static void do_loiter_to_alt(const AP_Mission::Mission_Command& cmd) 
+{
+    //set target alt  
+    next_WP_loc.alt = cmd.content.location.alt;
+
+    // convert relative alt to absolute alt
+    if (cmd.content.location.flags.relative_alt) {
+        next_WP_loc.flags.relative_alt = false;
+        next_WP_loc.alt += home.alt;
+    }
+
+    //I know I'm storing this twice -- I'm doing that on purpose -- 
+    //see verify_loiter_alt() function
+    condition_value = next_WP_loc.alt;
+    
+    //are lat and lon 0?  if so, don't change the current wp lat/lon
+    if (cmd.content.location.lat != 0 || cmd.content.location.lng != 0) {
+        set_next_WP(cmd.content.location);
+    }
+    //set loiter direction
+    loiter_set_direction_wp(cmd);
+
+    //must the plane be heading towards the next waypoint before breaking?
+    condition_value2 = LOWBYTE(cmd.p1);
+}
+
 /********************************************************************************/
 //  Verify Nav (Must) commands
 /********************************************************************************/
@@ -380,7 +420,7 @@ static bool verify_takeoff()
             // course. This keeps wings level until we are ready to
             // rotate, and also allows us to cope with arbitary
             // compass errors for auto takeoff
-            float takeoff_course = wrap_PI(radians(gps.ground_course_cd()*0.01)) - steer_state.locked_course_err;
+            float takeoff_course = wrap_PI(radians(gps.ground_course_cd()*0.01f)) - steer_state.locked_course_err;
             takeoff_course = wrap_PI(takeoff_course);
             steer_state.hold_course_cd = wrap_360_cd(degrees(takeoff_course)*100);
             gcs_send_text_fmt(PSTR("Holding course %ld at %.1fm/s (%.1f)"), 
@@ -506,6 +546,70 @@ static bool verify_loiter_turns()
     return false;
 }
 
+/*
+  verify a LOITER_TO_ALT command. This involves checking we have
+  reached both the desired altitude and desired heading. The desired
+  altitude only needs to be reached once.
+ */
+static bool verify_loiter_to_alt() 
+{
+    update_loiter();
+
+    //has target altitude been reached?
+    if (condition_value != 0) {
+        if (fabs(condition_value - current_loc.alt) < 500) {
+            //Only have to reach the altitude once -- that's why I need
+            //this global condition variable.
+            //
+            //This is in case of altitude oscillation when still trying
+            //to reach the target heading.
+            condition_value = 0;
+        } else {
+            return false;
+        }
+    }
+    
+    //has target heading been reached?
+    if (condition_value2 != 0) {
+        //Get the lat/lon of next Nav waypoint after this one:
+        AP_Mission::Mission_Command next_nav_cmd;
+        if (! mission.get_next_nav_cmd(mission.get_current_nav_index() + 1,
+                                       next_nav_cmd)) {
+            //no next waypoint to shoot for -- go ahead and break out of loiter
+            return true;        
+        } 
+
+        // Bearing in radians
+        int32_t bearing_cd = get_bearing_cd(current_loc,next_nav_cmd.content.location);
+
+        // get current heading. We should probably be using the ground
+        // course instead to improve the accuracy in wind
+        int32_t heading_cd = ahrs.yaw_sensor;
+
+        int32_t heading_err_cd = wrap_180_cd(bearing_cd - heading_cd);
+ 
+        /*
+          Check to see if the the plane is heading toward the land
+          waypoint
+          We use 10 degrees of slop so that we can handle 100
+          degrees/second of yaw
+        */
+        if (abs(heading_err_cd) <= 1000) {
+            //Want to head in a straight line from _here_ to the next waypoint.
+            //DON'T want to head in a line from the center of the loiter to 
+            //the next waypoint.
+            //Therefore: mark the "last" (next_wp_loc is about to be updated)
+            //wp lat/lon as the current location.
+            next_WP_loc = current_loc;
+            return true;
+        } else {
+            return false;
+        }
+    } 
+
+    return true;
+}
+
 static bool verify_RTL()
 {
     update_loiter();
@@ -525,10 +629,10 @@ static bool verify_continue_and_change_alt()
     }
    
     // Is the next_WP less than 200 m away?
-    if (get_distance(current_loc, next_WP_loc) < 200.f) {
+    if (get_distance(current_loc, next_WP_loc) < 200.0f) {
         //push another 300 m down the line
         int32_t next_wp_bearing_cd = get_bearing_cd(prev_WP_loc, next_WP_loc);
-        location_update(next_WP_loc, next_wp_bearing_cd * 0.01f, 300.f);
+        location_update(next_WP_loc, next_wp_bearing_cd * 0.01f, 300.0f);
     }
 
     //keep flying the same course
@@ -650,16 +754,39 @@ static void do_set_home(const AP_Mission::Mission_Command& cmd)
     }
 }
 
+// do_digicam_configure Send Digicam Configure message with the camera library
+static void do_digicam_configure(const AP_Mission::Mission_Command& cmd)
+{
+#if CAMERA == ENABLED
+    camera.configure_cmd(cmd);
+#endif
+}
+
+// do_digicam_control Send Digicam Control message with the camera library
+static void do_digicam_control(const AP_Mission::Mission_Command& cmd)
+{
+#if CAMERA == ENABLED
+    camera.control_cmd(cmd);
+    log_picture();
+#endif
+}
+
 // do_take_picture - take a picture with the camera library
 static void do_take_picture()
 {
 #if CAMERA == ENABLED
-    camera.trigger_pic();
+    camera.trigger_pic(true);
+    log_picture();
+#endif
+}
+
+// log_picture - log picture taken and send feedback to GCS
+static void log_picture()
+{
     gcs_send_message(MSG_CAMERA_FEEDBACK);
     if (should_log(MASK_LOG_CAMERA)) {
         DataFlash.Log_Write_Camera(ahrs, gps, current_loc);
     }
-#endif
 }
 
 // start_command_callback - callback function called from ap-mission when it begins a new mission command

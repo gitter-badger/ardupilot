@@ -268,7 +268,7 @@ AP_AHRS_DCM::yaw_error_compass(void)
     rb.normalize();
     if (rb.is_inf()) {
         // not a valid vector
-        return 0.0;
+        return 0.0f;
     }
 
     // update vector holding earths magnetic field (if required)
@@ -476,8 +476,7 @@ AP_AHRS_DCM::drift_correction_yaw(void)
         _omega_I_sum.z += error_z * _ki_yaw * yaw_deltat;
     }
 
-    _error_yaw_sum += fabsf(yaw_error);
-    _error_yaw_count++;
+    _error_yaw = 0.8f * _error_yaw + 0.2f * fabsf(yaw_error);
 }
 
 
@@ -648,6 +647,7 @@ AP_AHRS_DCM::drift_correction(float deltat)
     // running at 800Hz and the MPU6000 running at 1kHz, by combining
     // the two the effects of aliasing are greatly reduced.
     Vector3f error[INS_MAX_INSTANCES];
+    float error_dirn[INS_MAX_INSTANCES];
     Vector3f GA_b[INS_MAX_INSTANCES];
     int8_t besti = -1;
     float best_error = 0;
@@ -674,11 +674,18 @@ AP_AHRS_DCM::drift_correction(float deltat)
             continue;
         }
         error[i] = GA_b[i] % GA_e;
+        // Take dot product to catch case vectors are opposite sign and parallel
+        error_dirn[i] = GA_b[i] * GA_e;
         float error_length = error[i].length();
         if (besti == -1 || error_length < best_error) {
             besti = i;
             best_error = error_length;
         }
+        // Catch case where orientation is 180 degrees out
+        if (error_dirn[besti] < 0.0f) {
+            best_error = 1.0f;
+        }
+
     }
 
     if (besti == -1) {
@@ -737,8 +744,7 @@ AP_AHRS_DCM::drift_correction(float deltat)
         return;
     }
 
-    _error_rp_sum += best_error;
-    _error_rp_count++;
+    _error_rp = 0.8f * _error_rp + 0.2f * best_error;
 
     // base the P gain on the spin rate
     float spin_rate = _omega.length();
@@ -871,36 +877,6 @@ AP_AHRS_DCM::euler_angles(void)
     _body_dcm_matrix.to_euler(&roll, &pitch, &yaw);
 
     update_cd_values();
-}
-
-/* reporting of DCM state for MAVLink */
-
-// average error_roll_pitch since last call
-float AP_AHRS_DCM::get_error_rp(void)
-{
-    if (_error_rp_count == 0) {
-        // this happens when telemetry is setup on two
-        // serial ports
-        return _error_rp_last;
-    }
-    _error_rp_last = _error_rp_sum / _error_rp_count;
-    _error_rp_sum = 0;
-    _error_rp_count = 0;
-    return _error_rp_last;
-}
-
-// average error_yaw since last call
-float AP_AHRS_DCM::get_error_yaw(void)
-{
-    if (_error_yaw_count == 0) {
-        // this happens when telemetry is setup on two
-        // serial ports
-        return _error_yaw_last;
-    }
-    _error_yaw_last = _error_yaw_sum / _error_yaw_count;
-    _error_yaw_sum = 0;
-    _error_yaw_count = 0;
-    return _error_yaw_last;
 }
 
 // return our current position estimate using

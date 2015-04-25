@@ -22,7 +22,7 @@ static float get_speed_scaler(void)
         } else {
             speed_scaler = 2.0;
         }
-        speed_scaler = constrain_float(speed_scaler, 0.5, 2.0);
+        speed_scaler = constrain_float(speed_scaler, 0.5f, 2.0f);
     } else {
         if (channel_throttle->servo_out > 0) {
             speed_scaler = 0.5f + ((float)THROTTLE_CRUISE / channel_throttle->servo_out / 2.0f);                 // First order taylor expansion of square root
@@ -31,7 +31,7 @@ static float get_speed_scaler(void)
             speed_scaler = 1.67f;
         }
         // This case is constrained tighter as we don't have real speed info
-        speed_scaler = constrain_float(speed_scaler, 0.6, 1.67);
+        speed_scaler = constrain_float(speed_scaler, 0.6f, 1.67f);
     }
     return speed_scaler;
 }
@@ -339,7 +339,7 @@ static void stabilize_acro(float speed_scaler)
     /*
       manual rudder for now
      */
-    steering_control.steering = steering_control.rudder = channel_rudder->control_in;
+    steering_control.steering = steering_control.rudder = rudder_input;
 }
 
 /*
@@ -414,14 +414,14 @@ static void calc_throttle()
 static void calc_nav_yaw_coordinated(float speed_scaler)
 {
     bool disable_integrator = false;
-    if (control_mode == STABILIZE && channel_rudder->control_in != 0) {
+    if (control_mode == STABILIZE && rudder_input != 0) {
         disable_integrator = true;
     }
     steering_control.rudder = yawController.get_servo_out(speed_scaler, disable_integrator);
 
     // add in rudder mixing from roll
     steering_control.rudder += channel_roll->servo_out * g.kff_rudder_mix;
-    steering_control.rudder += channel_rudder->control_in;
+    steering_control.rudder += rudder_input;
     steering_control.rudder = constrain_int16(steering_control.rudder, -4500, 4500);
 }
 
@@ -451,11 +451,11 @@ static void calc_nav_yaw_ground(void)
         // manual rudder control while still
         steer_state.locked_course = false;
         steer_state.locked_course_err = 0;
-        steering_control.steering = channel_rudder->control_in;
+        steering_control.steering = rudder_input;
         return;
     }
 
-    float steer_rate = (channel_rudder->control_in/4500.0f) * g.ground_steer_dps;
+    float steer_rate = (rudder_input/4500.0f) * g.ground_steer_dps;
     if (flight_stage == AP_SpdHgtControl::FLIGHT_TAKEOFF) {
         steer_rate = 0;
     }
@@ -588,7 +588,7 @@ static bool suppress_throttle(void)
         // we're more than 10m from the home altitude
         throttle_suppressed = false;
         gcs_send_text_fmt(PSTR("Throttle unsuppressed - altitude %.2f"), 
-                          relative_altitude_abs_cm()*0.01f);
+                          (float)(relative_altitude_abs_cm()*0.01f));
         return false;
     }
 
@@ -968,7 +968,12 @@ static void set_servos(void)
 
     // send values to the PWM timers for output
     // ----------------------------------------
-    channel_roll->output();
+    if (g.rudder_only == 0) {
+        // when we RUDDER_ONLY mode we don't send the channel_roll
+        // output and instead rely on KFF_RDDRMIX. That allows the yaw
+        // damper to operate.
+        channel_roll->output();
+    }
     channel_pitch->output();
     channel_throttle->output();
     channel_rudder->output();

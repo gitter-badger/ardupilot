@@ -245,6 +245,16 @@ static NOINLINE void send_extended_status1(mavlink_channel_t chan)
     }
 #endif
 
+#if CONFIG_SONAR == ENABLED
+    if (sonar.num_sensors() > 0) {
+        control_sensors_present |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;
+        control_sensors_enabled |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;
+        if (sonar.has_data()) {
+            control_sensors_health |= MAV_SYS_STATUS_SENSOR_LASER_POSITION;
+        }
+    }
+#endif
+
     if (!ap.initialised || ins.calibrating()) {
         // while initialising the gyros and accels are not enabled
         control_sensors_enabled &= ~(MAV_SYS_STATUS_SENSOR_3D_GYRO | MAV_SYS_STATUS_SENSOR_3D_ACCEL);
@@ -399,12 +409,12 @@ static void NOINLINE send_current_waypoint(mavlink_channel_t chan)
 static void NOINLINE send_rangefinder(mavlink_channel_t chan)
 {
     // exit immediately if sonar is disabled
-    if (!sonar.healthy()) {
+    if (!sonar.has_data()) {
         return;
     }
     mavlink_msg_rangefinder_send(
             chan,
-            sonar_alt * 0.01f,
+            sonar.distance_cm() * 0.01f,
             sonar.voltage_mv() * 0.001f);
 }
 #endif
@@ -752,7 +762,7 @@ bool GCS_MAVLINK::stream_trigger(enum streams stream_num)
     // parameter sends
     if ((stream_num != STREAM_PARAMS) &&
         (waypoint_receiving || _queued_parameter != NULL)) {
-        rate *= 0.25;
+        rate *= 0.25f;
     }
 
     if (rate <= 0) {
@@ -1510,6 +1520,12 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_SERIAL_CONTROL:
         handle_serial_control(msg, gps);
         break;
+
+    case MAVLINK_MSG_ID_GPS_INJECT_DATA:
+        handle_gps_inject(msg, gps);
+        result = MAV_RESULT_ACCEPTED;
+        break;
+
 #endif
 
 #if CAMERA == ENABLED
@@ -1517,7 +1533,8 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
         break;
 
     case MAVLINK_MSG_ID_DIGICAM_CONTROL:
-        do_take_picture();
+        camera.control_msg(msg);
+        log_picture();
         break;
 #endif // CAMERA == ENABLED
 

@@ -1162,7 +1162,8 @@ void DataFlash_Class::Log_Write_Compass(const Compass &compass)
         offset_z        : (int16_t)mag_offsets.z,
         motor_offset_x  : (int16_t)mag_motor_offsets.x,
         motor_offset_y  : (int16_t)mag_motor_offsets.y,
-        motor_offset_z  : (int16_t)mag_motor_offsets.z
+        motor_offset_z  : (int16_t)mag_motor_offsets.z,
+        health          : (uint8_t)compass.healthy(0)
     };
     WriteBlock(&pkt, sizeof(pkt));
     
@@ -1182,7 +1183,8 @@ void DataFlash_Class::Log_Write_Compass(const Compass &compass)
             offset_z        : (int16_t)mag_offsets2.z,
             motor_offset_x  : (int16_t)mag_motor_offsets2.x,
             motor_offset_y  : (int16_t)mag_motor_offsets2.y,
-            motor_offset_z  : (int16_t)mag_motor_offsets2.z
+            motor_offset_z  : (int16_t)mag_motor_offsets2.z,
+            health          : (uint8_t)compass.healthy(1)
         };
         WriteBlock(&pkt2, sizeof(pkt2));
     }
@@ -1203,7 +1205,8 @@ void DataFlash_Class::Log_Write_Compass(const Compass &compass)
             offset_z        : (int16_t)mag_offsets3.z,
             motor_offset_x  : (int16_t)mag_motor_offsets3.x,
             motor_offset_y  : (int16_t)mag_motor_offsets3.y,
-            motor_offset_z  : (int16_t)mag_motor_offsets3.z
+            motor_offset_z  : (int16_t)mag_motor_offsets3.z,
+            health          : (uint8_t)compass.healthy(2)
         };
         WriteBlock(&pkt3, sizeof(pkt3));
     }
@@ -1251,9 +1254,9 @@ void DataFlash_Class::Log_Write_ESC(void)
                     LOG_PACKET_HEADER_INIT((uint8_t)(LOG_ESC1_MSG + i)),
                     time_ms     : time_ms,
                     rpm         : (int16_t)(esc_status.esc[i].esc_rpm/10),
-                    voltage     : (int16_t)(esc_status.esc[i].esc_voltage*100.f + .5f),
-                    current     : (int16_t)(esc_status.esc[i].esc_current*100.f + .5f),
-                    temperature : (int16_t)(esc_status.esc[i].esc_temperature*100.f + .5f)
+                    voltage     : (int16_t)(esc_status.esc[i].esc_voltage*100.0f + .5f),
+                    current     : (int16_t)(esc_status.esc[i].esc_current*100.0f + .5f),
+                    temperature : (int16_t)(esc_status.esc[i].esc_temperature*100.0f + .5f)
                 };
 
                 WriteBlock(&pkt, sizeof(pkt));
